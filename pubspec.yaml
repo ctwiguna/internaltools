@@ -1,0 +1,61 @@
+name: flutter_laundry_offline_app
+description: "Aplikasi Kasir Laundry Offline untuk UMKM Indonesia"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.1
+
+dependencies:
+  # Supabase
+  supabase_flutter: ^2.8.4
+
+  # Connectivity
+  connectivity_plus: ^6.1.4
+
+  # Environment
+  flutter_dotenv: ^5.2.1
+
+  # Existing dependencies
+  crypto: ^3.0.6
+  cupertino_icons: ^1.0.8
+  equatable: ^2.0.8
+  esc_pos_utils_plus: ^2.0.3
+  excel: ^4.0.6
+  fl_chart: ^1.1.1
+  flutter:
+    sdk: flutter
+  flutter_bloc: ^9.1.1
+  google_fonts: ^7.0.2
+  intl: ^0.20.2
+  path: ^1.9.1
+  path_provider: ^2.1.5
+  permission_handler: ^12.0.1
+  print_bluetooth_thermal: ^1.1.9
+  share_plus: ^12.0.1
+  shared_preferences: ^2.5.4
+  sqflite: ^2.4.2
+  url_launcher: ^6.3.2
+  uuid: ^4.5.2
+
+dev_dependencies:
+  change_app_package_name: ^1.5.0
+  flutter_launcher_icons: ^0.14.3
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/logolaundry.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icons/logolaundry.png"
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+    - .env

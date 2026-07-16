@@ -1,0 +1,326 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_laundry_offline_app/core/services/supabase_service.dart';
+import 'package:flutter_laundry_offline_app/core/utils/password_helper.dart';
+import 'package:flutter_laundry_offline_app/data/database/database_helper.dart';
+import 'package:flutter_laundry_offline_app/data/models/user.dart';
+
+class UserRepository {
+  final DatabaseHelper _databaseHelper;
+
+  UserRepository({DatabaseHelper? databaseHelper})
+      : _databaseHelper = databaseHelper ?? DatabaseHelper.instance;
+
+  /// Get all users (for owner management)
+  Future<List<User>> getAllUsers() async {
+    final db = await _databaseHelper.database;
+    final result = await db.query(
+      'users',
+      orderBy: 'role ASC, name ASC',
+    );
+    return result.map((map) => User.fromMap(map)).toList();
+  }
+
+  /// Get all active users
+  Future<List<User>> getActiveUsers() async {
+    final db = await _databaseHelper.database;
+    final result = await db.query(
+      'users',
+      where: 'is_active = 1',
+      orderBy: 'role ASC, name ASC',
+    );
+    return result.map((map) => User.fromMap(map)).toList();
+  }
+
+  /// Get user by ID
+  Future<User?> getUserById(int id) async {
+    final db = await _databaseHelper.database;
+    final result = await db.query(
+      'users',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    if (result.isEmpty) return null;
+    return User.fromMap(result.first);
+  }
+
+  /// Get user by username
+  Future<User?> getUserByUsername(String username) async {
+    final db = await _databaseHelper.database;
+    final result = await db.query(
+      'users',
+      where: 'username = ?',
+      whereArgs: [username.toLowerCase().trim()],
+    );
+    if (result.isEmpty) return null;
+    return User.fromMap(result.first);
+  }
+
+  /// Create new user
+  Future<User> createUser({
+    required String username,
+    required String password,
+    required String name,
+    required UserRole role,
+  }) async {
+    final db = await _databaseHelper.database;
+
+    // Validate username
+    final usernameValidation = PasswordHelper.validateUsername(username);
+    if (usernameValidation != null) {
+      throw Exception(usernameValidation);
+    }
+
+    // Check username uniqueness
+    final existing = await getUserByUsername(username);
+    if (existing != null) {
+      throw Exception('Username sudah digunakan');
+    }
+
+    // Validate password
+    final passwordValidation = PasswordHelper.validatePassword(password);
+    if (passwordValidation != null) {
+      throw Exception(passwordValidation);
+    }
+
+    // Hash password
+    final passwordHash = PasswordHelper.hashPassword(password);
+
+    // Create user
+    final now = DateTime.now().toIso8601String();
+    final id = await db.insert('users', {
+      'username': username.toLowerCase().trim(),
+      'password_hash': passwordHash,
+      'name': name.trim(),
+      'role': role.value,
+      'is_active': 1,
+      'created_at': now,
+      'updated_at': now,
+    });
+
+    final user = User(
+      id: id,
+      username: username.toLowerCase().trim(),
+      passwordHash: passwordHash,
+      name: name.trim(),
+      role: role,
+      isActive: true,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    // Sync kasir to Supabase if authenticated (only kasir, not owner)
+    if (role == UserRole.kasir && SupabaseService.instance.isAuthenticated) {
+      await _syncUserToCloud(user);
+    }
+
+    return user;
+  }
+
+  /// Sync kasir user to Supabase cloud
+  Future<void> _syncUserToCloud(User user) async {
+    try {
+      final userId = SupabaseService.instance.currentUser?.id;
+      if (userId == null) return;
+
+      final profile = await SupabaseService.instance.client
+          .from('profiles')
+          .select('outlet_id')
+          .eq('id', userId)
+          .single();
+
+      final outletId = profile['outlet_id'] as String?;
+      if (outletId == null) return;
+
+      // Check if already exists
+      final existing = await SupabaseService.instance.client
+          .from('local_users')
+          .select('id')
+          .eq('outlet_id', outletId)
+          .eq('username', user.username)
+          .maybeSingle();
+
+      if (existing != null) {
+        // Update existing
+        await SupabaseService.instance.client.from('local_users').update({
+          'password_hash': user.passwordHash,
+          'name': user.name,
+          'role': user.role.value,
+          'is_active': user.isActive,
+        }).eq('id', existing['id']);
+        debugPrint('Sync: Kasir ${user.username} updated');
+      } else {
+        // Insert new
+        await SupabaseService.instance.insert('local_users', {
+          'outlet_id': outletId,
+          'username': user.username,
+          'password_hash': user.passwordHash,
+          'name': user.name,
+          'role': user.role.value,
+          'is_active': user.isActive,
+        });
+        debugPrint('Sync: Kasir ${user.username} created');
+      }
+    } catch (e) {
+      debugPrint('Sync kasir error: $e');
+    }
+  }
+
+  /// Update user info (not password)
+  Future<User> updateUser({
+    required int id,
+    required String name,
+    required UserRole role,
+  }) async {
+    final db = await _databaseHelper.database;
+
+    // Check user exists
+    final existing = await getUserById(id);
+    if (existing == null) {
+      throw Exception('User tidak ditemukan');
+    }
+
+    // Update user
+    final now = DateTime.now().toIso8601String();
+    await db.update(
+      'users',
+      {
+        'name': name.trim(),
+        'role': role.value,
+        'updated_at': now,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+
+    final updatedUser = existing.copyWith(
+      name: name.trim(),
+      role: role,
+      updatedAt: DateTime.now(),
+    );
+
+    // Sync kasir changes to Supabase if authenticated
+    if (role == UserRole.kasir && SupabaseService.instance.isAuthenticated) {
+      await _syncUserToCloud(updatedUser);
+    }
+
+    return updatedUser;
+  }
+
+  /// Reset user password (owner only)
+  Future<void> resetPassword({
+    required int userId,
+    required String newPassword,
+  }) async {
+    final db = await _databaseHelper.database;
+
+    // Check user exists
+    final existing = await getUserById(userId);
+    if (existing == null) {
+      throw Exception('User tidak ditemukan');
+    }
+
+    // Validate password
+    final validation = PasswordHelper.validatePassword(newPassword);
+    if (validation != null) {
+      throw Exception(validation);
+    }
+
+    // Hash new password
+    final newHash = PasswordHelper.hashPassword(newPassword);
+
+    // Update password
+    await db.update(
+      'users',
+      {
+        'password_hash': newHash,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
+
+    // Sync password change to Supabase if authenticated (only kasir)
+    if (existing.role == UserRole.kasir && SupabaseService.instance.isAuthenticated) {
+      await _syncUserToCloud(existing.copyWith(passwordHash: newHash));
+    }
+  }
+
+  /// Soft delete user (set is_active = 0)
+  Future<void> deactivateUser(int id) async {
+    final db = await _databaseHelper.database;
+
+    // Get user before deactivate for sync
+    final user = await getUserById(id);
+
+    await db.update(
+      'users',
+      {
+        'is_active': 0,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+
+    // Sync status change to Supabase if authenticated (only kasir)
+    if (user != null && user.role == UserRole.kasir && SupabaseService.instance.isAuthenticated) {
+      await _syncUserToCloud(user.copyWith(isActive: false));
+    }
+  }
+
+  /// Activate user
+  Future<void> activateUser(int id) async {
+    final db = await _databaseHelper.database;
+
+    // Get user before activate for sync
+    final user = await getUserById(id);
+
+    await db.update(
+      'users',
+      {
+        'is_active': 1,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+
+    // Sync status change to Supabase if authenticated (only kasir)
+    if (user != null && user.role == UserRole.kasir && SupabaseService.instance.isAuthenticated) {
+      await _syncUserToCloud(user.copyWith(isActive: true));
+    }
+  }
+
+  /// Toggle user active status
+  Future<bool> toggleUserStatus(int id) async {
+    final user = await getUserById(id);
+    if (user == null) {
+      throw Exception('User tidak ditemukan');
+    }
+
+    if (user.isActive) {
+      await deactivateUser(id);
+      return false;
+    } else {
+      await activateUser(id);
+      return true;
+    }
+  }
+
+  /// Get user count by role
+  Future<Map<UserRole, int>> getUserCountByRole() async {
+    final db = await _databaseHelper.database;
+
+    final ownerCount = await db.rawQuery(
+      "SELECT COUNT(*) as count FROM users WHERE role = 'owner' AND is_active = 1",
+    );
+    final kasirCount = await db.rawQuery(
+      "SELECT COUNT(*) as count FROM users WHERE role = 'kasir' AND is_active = 1",
+    );
+
+    return {
+      UserRole.owner: ownerCount.first['count'] as int,
+      UserRole.kasir: kasirCount.first['count'] as int,
+    };
+  }
+}
