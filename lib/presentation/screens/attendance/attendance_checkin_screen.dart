@@ -98,7 +98,7 @@ class _AttendanceCheckInScreenState extends State<AttendanceCheckInScreen> {
                 backgroundColor: AppThemeColors.success,
               ),
             );
-            Navigator.pop(context, true);
+            Navigator.pop(context);
           } else if (state is AttendanceError) {
             setState(() => _isSubmitting = false);
             ScaffoldMessenger.of(context).showSnackBar(
