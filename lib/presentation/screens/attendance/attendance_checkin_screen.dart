@@ -62,8 +62,12 @@ class _AttendanceCheckInScreenState extends State<AttendanceCheckInScreen> {
     if (authState is! AuthAuthenticated) return;
 
     final user = authState.user;
+    final durationSec = _startTime != null
+        ? DateTime.now().difference(_startTime!).inSeconds
+        : 0;
     final checklist = _checklistItems.map((i) => {
       'item': i['item'] as String,
+      'checked': 'true',
       'checked_at': i['checked_at'] as String? ?? DateTime.now().toIso8601String(),
     }).toList();
 
@@ -73,6 +77,7 @@ class _AttendanceCheckInScreenState extends State<AttendanceCheckInScreen> {
       userId: user.id,
       userName: user.name,
       checklist: checklist.cast<Map<String, String>>(),
+      durationSec: durationSec,
     );
   }
 

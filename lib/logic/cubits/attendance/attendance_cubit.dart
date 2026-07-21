@@ -43,16 +43,15 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     required int? userId,
     required String userName,
     required List<Map<String, String>> checklist,
+    int? durationSec,
   }) async {
     emit(const AttendanceLoading());
     try {
-      final stopwatch = Stopwatch()..start();
-
       await _opsRepository.checkIn(
         userId: userId,
         userName: userName,
         checklist: checklist,
-        checklistDurationSec: stopwatch.elapsed.inSeconds,
+        checklistDurationSec: durationSec ?? 0,
       );
 
       emit(const AttendanceCheckInSuccess('Absensi berhasil dicatat'));

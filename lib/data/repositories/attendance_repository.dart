@@ -19,6 +19,7 @@ class AttendanceRepository {
   }
 
   Future<List<Attendance>> getAttendanceByUser(int? userId, {int limit = 50}) async {
+    if (userId == null) return [];
     final db = await DatabaseHelper.instance.database;
     final outletIdStr = OutletService.instance.currentOutletIdStr;
     if (outletIdStr == null) return [];
@@ -34,13 +35,14 @@ class AttendanceRepository {
   }
 
   Future<Attendance?> getTodayAttendance(int? userId) async {
+    if (userId == null) return null;
     final db = await DatabaseHelper.instance.database;
     final outletIdStr = OutletService.instance.currentOutletIdStr;
     if (outletIdStr == null) return null;
 
     final now = DateTime.now();
     final startOfDay = DateTime(now.year, now.month, now.day).toIso8601String();
-    final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59).toIso8601String();
+    final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59, 999).toIso8601String();
 
     final rows = await db.query(
       'attendance',

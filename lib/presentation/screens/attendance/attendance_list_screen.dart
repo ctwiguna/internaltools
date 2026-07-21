@@ -32,7 +32,7 @@ class _AttendanceListScreenState extends State<AttendanceListScreen> {
   }
 
   Future<void> _navigateToCheckIn() async {
-    final result = await Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => BlocProvider.value(
@@ -41,9 +41,6 @@ class _AttendanceListScreenState extends State<AttendanceListScreen> {
         ),
       ),
     );
-    if (result == true) {
-      _loadData();
-    }
   }
 
   @override
