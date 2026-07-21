@@ -19,6 +19,8 @@ import 'package:flutter_laundry_offline_app/presentation/screens/settings/online
 import 'package:flutter_laundry_offline_app/presentation/screens/services/service_list_screen.dart';
 import 'package:flutter_laundry_offline_app/presentation/screens/customers/customer_list_screen.dart';
 import 'package:flutter_laundry_offline_app/presentation/screens/settings/printer_settings_screen.dart';
+import 'package:flutter_laundry_offline_app/presentation/screens/attendance/attendance_list_screen.dart';
+import 'package:flutter_laundry_offline_app/logic/cubits/attendance/attendance_cubit.dart';
 import 'package:flutter_laundry_offline_app/presentation/widgets/connectivity_status_widget.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -486,6 +488,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       builder: (_) => BlocProvider(
                                         create: (_) => CustomerCubit(),
                                         child: const CustomerListScreen(),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+
+                          // Attendance Section
+                          _buildSection(
+                            title: 'Absensi & Operasional',
+                            children: [
+                              _buildSettingTile(
+                                context: context,
+                                icon: Icons.fact_check,
+                                title: 'Absensi Karyawan',
+                                subtitle: 'Catat absensi harian dengan checklist',
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => BlocProvider(
+                                        create: (_) => AttendanceCubit(),
+                                        child: const AttendanceListScreen(),
                                       ),
                                     ),
                                   );
