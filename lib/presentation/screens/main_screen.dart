@@ -48,6 +48,7 @@ class _MainScreenState extends State<MainScreen> {
 
         final user = state.user;
         final isOwner = user.role == UserRole.owner;
+        final canAccessLaporan = user.username.toLowerCase() == 'ctwiguna';
 
         // Build navigation items based on role
         final navItems = <BottomNavigationBarItem>[
@@ -63,8 +64,8 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ];
 
-        // Only owner can access reports
-        if (isOwner) {
+        // Laporan hanya bisa dibuka akun ctwiguna
+        if (canAccessLaporan) {
           navItems.add(
             const BottomNavigationBarItem(
               icon: Icon(Icons.analytics_outlined),
@@ -97,13 +98,15 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ];
 
-        if (isOwner) {
+       if (canAccessLaporan) {
           screens.add(
             BlocProvider(
               create: (_) => ReportCubit(),
               child: const ReportScreen(),
             ),
           );
+        }
+        if (isOwner) {
           screens.add(
             BlocProvider(
               create: (_) => UserCubit(),
