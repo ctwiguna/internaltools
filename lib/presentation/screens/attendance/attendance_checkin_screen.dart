@@ -17,14 +17,14 @@ class AttendanceCheckInScreen extends StatefulWidget {
 
 class _AttendanceCheckInScreenState extends State<AttendanceCheckInScreen> {
   final List<Map<String, dynamic>> _checklistItems = [
-    {'item': 'Lantai dipel', 'checked': false},
-    {'item': 'Meja kasir dilap', 'checked': false},
-    {'item': 'Peralatan cuci dicek', 'checked': false},
-    {'item': 'Stok deterjen dicek', 'checked': false},
+    {'item': 'Sapu & pel', 'checked': false},
+    {'item': 'Karet dan kaca mesin cuci dilap', 'checked': false},
+    {'item': 'Drop off sudah dikerjakan', 'checked': false},
+    {'item': 'Stok deterjen pewangi plastik ada', 'checked': false},
     {'item': 'Tempat sampah dikosongkan', 'checked': false},
-    {'item': 'Setrika dicek', 'checked': false},
-    {'item': 'Mesin cuci dicek', 'checked': false},
-    {'item': 'Lemari pelanggan dirapikan', 'checked': false},
+    {'item': 'Saldo token listrik di atas 200', 'checked': false},
+    {'item': 'Gas LPG masih', 'checked': false},
+    {'item': 'Lemari, meja, toilet dirapikan', 'checked': false},
   ];
 
   bool _isSubmitting = false;

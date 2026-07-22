@@ -53,4 +53,11 @@ class TypeHelper {
     if (value is String) return value.toLowerCase() == 'true' || value == '1';
     return defaultValue;
   }
+
+    /// Safely cast a value to String with default value
+  static String asString(dynamic value, [String defaultValue = '']) {
+    if (value == null) return defaultValue;
+    if (value is String) return value;
+    return value.toString();
+  }
 }
