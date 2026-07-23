@@ -1,3 +1,4 @@
+import 'package:flutter_laundry_offline_app/core/services/outlet_service.dart';
 import 'package:flutter_laundry_offline_app/core/services/supabase_service.dart';
 import 'package:flutter_laundry_offline_app/data/models/customer.dart';
 
@@ -7,13 +8,16 @@ class SupabaseCustomerRepository {
 
   SupabaseCustomerRepository({SupabaseService? supabase})
       : _supabase = supabase ?? SupabaseService.instance;
-
-  /// Get all customers for current outlet
+  /// UUID outlet aktif (mengikuti OutletService)
+  String? get _outletUuid => OutletService.instance.currentOutletUuid;
+  
   Future<List<Customer>> getAllCustomers() async {
-    final data = await _supabase.client
-        .from('customers')
-        .select()
-        .order('name');
+    var query = _supabase.client.from('customers').select();
+
+    final uuid = _outletUuid;
+    if (uuid != null) query = query.eq('outlet_id', uuid);
+
+    final data = await query.order('name');
 
     return (data as List).map((map) => Customer.fromSupabase(map)).toList();
   }
@@ -30,13 +34,16 @@ class SupabaseCustomerRepository {
     return Customer.fromSupabase(data);
   }
 
-  /// Search customers by name or phone
   Future<List<Customer>> searchCustomers(String query) async {
-    final data = await _supabase.client
+    var supabaseQuery = _supabase.client
         .from('customers')
         .select()
-        .or('name.ilike.%$query%,phone.ilike.%$query%')
-        .order('name');
+        .or('name.ilike.%$query%,phone.ilike.%$query%');
+
+    final uuid = _outletUuid;
+    if (uuid != null) supabaseQuery = supabaseQuery.eq('outlet_id', uuid);
+
+    final data = await supabaseQuery.order('name');
 
     return (data as List).map((map) => Customer.fromSupabase(map)).toList();
   }

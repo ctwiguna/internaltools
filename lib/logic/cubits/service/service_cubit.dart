@@ -1,14 +1,14 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_laundry_offline_app/data/models/service.dart';
-import 'package:flutter_laundry_offline_app/data/repositories/service_repository.dart';
+import 'package:flutter_laundry_offline_app/data/repositories/hybrid_service_repository.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/service/service_state.dart';
 
 class ServiceCubit extends Cubit<ServiceState> {
-  final ServiceRepository _serviceRepository;
+  final HybridServiceRepository _serviceRepository;
   List<Service> _services = [];
 
-  ServiceCubit({ServiceRepository? serviceRepository})
-      : _serviceRepository = serviceRepository ?? ServiceRepository(),
+  ServiceCubit({HybridServiceRepository? serviceRepository})
+      : _serviceRepository = serviceRepository ?? HybridServiceRepository(),
         super(const ServiceInitial());
 
   List<Service> get services => _services;
@@ -54,10 +54,11 @@ class ServiceCubit extends Cubit<ServiceState> {
     emit(const ServiceLoading());
 
     try {
-      // Check duplicate name (excluding current service)
+      // Check duplicate name (excluding current service).
+      // Untuk data online, pakai remoteId (UUID) sebagai excludeId.
       final exists = await _serviceRepository.serviceNameExists(
         service.name,
-        excludeId: service.id,
+        excludeId: service.remoteId ?? service.id,
       );
       if (exists) {
         emit(const ServiceError('Nama layanan sudah ada'));
@@ -76,8 +77,8 @@ class ServiceCubit extends Cubit<ServiceState> {
     }
   }
 
-  /// Delete service (soft delete)
-  Future<void> deleteService(int id) async {
+  /// Delete service / soft delete (menerima int id lokal atau String UUID remote)
+  Future<void> deleteService(dynamic id) async {
     emit(const ServiceLoading());
 
     try {

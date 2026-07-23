@@ -164,7 +164,9 @@ class _OutletManagementScreenState extends State<OutletManagementScreen> {
       itemCount: state.outlets.length,
       itemBuilder: (context, index) {
         final outlet = state.outlets[index];
-        final isCurrentOutlet = outlet.id == state.currentOutlet?.id;
+        final isCurrentOutlet = outlet.remoteId != null
+            ? outlet.remoteId == state.currentOutlet?.remoteId
+            : outlet.id == state.currentOutlet?.id;
 
         return _buildOutletCard(context, outlet, isCurrentOutlet, state.outlets.length);
       },
@@ -623,7 +625,7 @@ class _OutletManagementScreenState extends State<OutletManagementScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              context.read<OutletCubit>().deleteOutlet(outlet.id!);
+              context.read<OutletCubit>().deleteOutlet(outlet.remoteId ?? outlet.id!);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppThemeColors.error,

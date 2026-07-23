@@ -1,15 +1,28 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_laundry_offline_app/core/services/connectivity_service.dart';
 import 'package:flutter_laundry_offline_app/core/services/outlet_service.dart';
+import 'package:flutter_laundry_offline_app/core/services/supabase_service.dart';
 import 'package:flutter_laundry_offline_app/data/models/outlet.dart';
 import 'package:flutter_laundry_offline_app/data/repositories/outlet_repository.dart';
+import 'package:flutter_laundry_offline_app/data/repositories/supabase_outlet_repository.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/outlet/outlet_state.dart';
 
 class OutletCubit extends Cubit<OutletState> {
   final OutletRepository _repository;
+  final SupabaseOutletRepository _remoteRepository;
+  final ConnectivityService _connectivity;
+  final SupabaseService _supabase;
 
-  OutletCubit({OutletRepository? repository})
-      : _repository = repository ?? OutletRepository(),
+  OutletCubit({
+    OutletRepository? repository,
+    SupabaseOutletRepository? remoteRepository,
+    ConnectivityService? connectivity,
+    SupabaseService? supabase,
+  })  : _repository = repository ?? OutletRepository(),
+        _remoteRepository = remoteRepository ?? SupabaseOutletRepository(),
+        _connectivity = connectivity ?? ConnectivityService.instance,
+        _supabase = supabase ?? SupabaseService.instance,
         super(OutletInitial());
 
   Outlet? _currentOutlet;
@@ -18,10 +31,50 @@ class OutletCubit extends Cubit<OutletState> {
   Outlet? get currentOutlet => _currentOutlet;
   List<Outlet> get outlets => _outlets;
 
+  /// Mode online aktif jika ada koneksi DAN user login Supabase
+  bool get _isOnline => _connectivity.isOnline && _supabase.isAuthenticated;
+
   /// Load all outlets and current outlet
   Future<void> loadOutlets() async {
     emit(OutletLoading());
 
+    // Mode online: ambil daftar outlet langsung dari Supabase
+    if (_isOnline) {
+      try {
+        _outlets = await _remoteRepository.getOutlets();
+
+        // Tentukan outlet aktif dari konteks OutletService (UUID)
+        final uuid = OutletService.instance.currentOutletUuid;
+        Outlet? current;
+        if (uuid != null) {
+          for (final o in _outlets) {
+            if (o.remoteId == uuid) {
+              current = o;
+              break;
+            }
+          }
+        }
+        current ??= _outlets.isNotEmpty ? _outlets.first : null;
+        _currentOutlet = current;
+
+        // Pastikan konteks OutletService selalu valid & tersimpan
+        if (current != null && current.remoteId != null) {
+          await OutletService.instance
+              .setCurrentOutletRemote(current.remoteId!, outlet: current);
+        }
+
+        emit(OutletLoaded(
+          outlets: _outlets,
+          currentOutlet: _currentOutlet,
+        ));
+        return;
+      } catch (e) {
+        debugPrint('OutletCubit.loadOutlets online error: $e');
+        // Lanjut fallback ke lokal di bawah
+      }
+    }
+
+    // Mode offline/lokal (fallback)
     try {
       _outlets = await _repository.getAllOutlets();
       _currentOutlet = await _repository.getCurrentOutlet();
@@ -46,12 +99,34 @@ class OutletCubit extends Cubit<OutletState> {
 
   /// Switch to another outlet
   Future<void> switchOutlet(Outlet outlet) async {
+    emit(OutletSwitching());
+
+    // Mode online: switch berbasis UUID Supabase
+    if (_isOnline && outlet.remoteId != null) {
+      try {
+        await OutletService.instance
+            .setCurrentOutletRemote(outlet.remoteId!, outlet: outlet);
+        _currentOutlet = outlet;
+
+        emit(OutletSwitched(
+          outlet: outlet,
+          message: 'Berhasil beralih ke ${outlet.name}',
+        ));
+
+        // Reload to update state
+        await loadOutlets();
+        return;
+      } catch (e) {
+        emit(OutletError(message: 'Gagal beralih outlet: ${e.toString()}'));
+        return;
+      }
+    }
+
+    // Mode lokal (legacy)
     if (outlet.id == null) {
       emit(const OutletError(message: 'Outlet tidak valid'));
       return;
     }
-
-    emit(OutletSwitching());
 
     try {
       await _repository.setCurrentOutletId(outlet.id!);
@@ -87,12 +162,16 @@ class OutletCubit extends Cubit<OutletState> {
     emit(OutletCreating());
 
     try {
-      final newOutlet = await _repository.createOutlet(Outlet(
+      final draft = Outlet(
         name: name.trim(),
         address: address?.trim(),
         phone: phone?.trim(),
         invoicePrefix: invoicePrefix.trim().toUpperCase(),
-      ));
+      );
+
+      final newOutlet = _isOnline
+          ? await _remoteRepository.createOutlet(draft)
+          : await _repository.createOutlet(draft);
 
       _outlets.insert(0, newOutlet);
 
@@ -110,11 +189,6 @@ class OutletCubit extends Cubit<OutletState> {
 
   /// Update outlet
   Future<void> updateOutlet(Outlet outlet) async {
-    if (outlet.id == null) {
-      emit(const OutletError(message: 'Outlet tidak valid'));
-      return;
-    }
-
     if (outlet.name.trim().isEmpty) {
       emit(const OutletError(message: 'Nama outlet tidak boleh kosong'));
       return;
@@ -123,19 +197,37 @@ class OutletCubit extends Cubit<OutletState> {
     emit(OutletUpdating());
 
     try {
-      final updatedOutlet = await _repository.updateOutlet(outlet);
+      final Outlet updatedOutlet;
+      if (_isOnline && outlet.remoteId != null) {
+        updatedOutlet = await _remoteRepository.updateOutlet(outlet);
+      } else {
+        updatedOutlet = await _repository.updateOutlet(outlet);
+      }
 
       // Update in local list
-      final index = _outlets.indexWhere((o) => o.id == outlet.id);
+      final index = _outlets.indexWhere((o) =>
+          (o.remoteId != null && o.remoteId == updatedOutlet.remoteId) ||
+          (o.id != null && o.id == updatedOutlet.id));
       if (index >= 0) {
         _outlets[index] = updatedOutlet;
       }
 
       // Update current outlet if this is the current one
-      if (_currentOutlet?.id == outlet.id) {
+      final isCurrent = (_currentOutlet?.remoteId != null &&
+              _currentOutlet?.remoteId == updatedOutlet.remoteId) ||
+          (_currentOutlet?.id != null &&
+              _currentOutlet?.id == updatedOutlet.id);
+      if (isCurrent) {
         _currentOutlet = updatedOutlet;
-        // IMPORTANT: Reload OutletService to get updated data (e.g., invoice prefix)
-        await OutletService.instance.loadCurrentOutlet();
+        // Refresh OutletService (mis. invoice prefix berubah)
+        if (updatedOutlet.remoteId != null) {
+          await OutletService.instance.setCurrentOutletRemote(
+            updatedOutlet.remoteId!,
+            outlet: updatedOutlet,
+          );
+        } else {
+          await OutletService.instance.loadCurrentOutlet();
+        }
       }
 
       emit(OutletUpdated(
@@ -150,9 +242,13 @@ class OutletCubit extends Cubit<OutletState> {
     }
   }
 
-  /// Delete outlet (only if not the current one and there are more than 1 outlet)
-  Future<void> deleteOutlet(int outletId) async {
-    if (_currentOutlet?.id == outletId) {
+  /// Delete outlet (menerima int id lokal atau String UUID remote).
+  /// Tidak bisa menghapus outlet yang sedang aktif / outlet terakhir.
+  Future<void> deleteOutlet(dynamic outletId) async {
+    final isCurrent =
+        (outletId is String && outletId == _currentOutlet?.remoteId) ||
+            (outletId is int && outletId == _currentOutlet?.id);
+    if (isCurrent) {
       emit(const OutletError(
           message: 'Tidak dapat menghapus outlet yang sedang aktif'));
       return;
@@ -167,8 +263,13 @@ class OutletCubit extends Cubit<OutletState> {
     emit(OutletLoading());
 
     try {
-      await _repository.deleteOutlet(outletId);
-      _outlets.removeWhere((o) => o.id == outletId);
+      if (outletId is String && _isOnline) {
+        await _remoteRepository.deleteOutlet(outletId);
+        _outlets.removeWhere((o) => o.remoteId == outletId);
+      } else if (outletId is int) {
+        await _repository.deleteOutlet(outletId);
+        _outlets.removeWhere((o) => o.id == outletId);
+      }
 
       emit(OutletLoaded(
         outlets: _outlets,
@@ -176,6 +277,10 @@ class OutletCubit extends Cubit<OutletState> {
       ));
     } catch (e) {
       emit(OutletError(message: 'Gagal menghapus outlet: ${e.toString()}'));
+      emit(OutletLoaded(
+        outlets: _outlets,
+        currentOutlet: _currentOutlet,
+      ));
     }
   }
 

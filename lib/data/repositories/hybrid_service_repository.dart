@@ -1,4 +1,5 @@
 import 'package:flutter_laundry_offline_app/core/services/connectivity_service.dart';
+import 'package:flutter_laundry_offline_app/core/services/outlet_service.dart';
 import 'package:flutter_laundry_offline_app/core/services/supabase_service.dart';
 import 'package:flutter_laundry_offline_app/data/models/service.dart';
 import 'package:flutter_laundry_offline_app/data/repositories/service_repository.dart';
@@ -11,8 +12,9 @@ class HybridServiceRepository {
   final ConnectivityService _connectivity;
   final SupabaseService _supabase;
 
-  /// Current outlet ID for online operations
-  String? _outletId;
+  /// Manual override outlet ID untuk operasi online (opsional).
+  /// Default: otomatis mengikuti outlet aktif di OutletService.
+  String? _manualOutletId;
 
   HybridServiceRepository({
     ServiceRepository? offlineRepo,
@@ -24,10 +26,15 @@ class HybridServiceRepository {
         _connectivity = connectivity ?? ConnectivityService.instance,
         _supabase = supabase ?? SupabaseService.instance;
 
-  /// Set the outlet ID for online operations
+  /// Set outlet ID manual (opsional — biasanya tidak perlu karena
+  /// otomatis mengikuti outlet aktif di OutletService)
   void setOutletId(String? outletId) {
-    _outletId = outletId;
+    _manualOutletId = outletId;
   }
+
+  /// Outlet UUID untuk operasi online — mengikuti outlet aktif
+  String? get _outletId =>
+      _manualOutletId ?? OutletService.instance.currentOutletUuid;
 
   /// Check if should use online mode
   bool get _shouldUseOnline =>

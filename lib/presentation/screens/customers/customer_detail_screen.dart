@@ -376,7 +376,7 @@ class CustomerDetailScreen extends StatelessWidget {
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              context.read<CustomerCubit>().deleteCustomer(customer.id!);
+              context.read<CustomerCubit>().deleteCustomer(customer.remoteId ?? customer.id!);
             },
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
             child: const Text('Hapus'),

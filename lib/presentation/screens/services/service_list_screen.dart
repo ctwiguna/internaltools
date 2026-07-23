@@ -50,7 +50,7 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              context.read<ServiceCubit>().deleteService(service.id!);
+              context.read<ServiceCubit>().deleteService(service.remoteId ?? service.id!);
               Navigator.pop(dialogContext);
             },
             style: ElevatedButton.styleFrom(

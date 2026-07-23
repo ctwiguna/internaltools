@@ -1,3 +1,4 @@
+import 'package:flutter_laundry_offline_app/core/services/outlet_service.dart';
 import 'package:flutter_laundry_offline_app/core/services/supabase_service.dart';
 import 'package:flutter_laundry_offline_app/data/models/service.dart';
 
@@ -8,22 +9,33 @@ class SupabaseServiceRepository {
   SupabaseServiceRepository({SupabaseService? supabase})
       : _supabase = supabase ?? SupabaseService.instance;
 
+  /// UUID outlet aktif (mengikuti OutletService) — untuk memfilter
+  /// data per outlet, terutama saat owner berpindah-pindah outlet.
+  String? get _outletUuid => OutletService.instance.currentOutletUuid;
+
   /// Get all active services for current outlet
   Future<List<Service>> getAllServices() async {
-    final data = await _supabase.client
+    var query = _supabase.client
         .from('services')
         .select()
-        .eq('is_active', true)
-        .order('name');
+        .eq('is_active', true);
+
+    final uuid = _outletUuid;
+    if (uuid != null) query = query.eq('outlet_id', uuid);
+
+    final data = await query.order('name');
 
     return (data as List).map((map) => Service.fromSupabase(map)).toList();
   }
 
   /// Get all services (including inactive)
   Future<List<Service>> getAllServicesIncludingInactive() async {
-    final data = await _supabase.client
-        .from('services')
-        .select()
+    var query = _supabase.client.from('services').select();
+
+    final uuid = _outletUuid;
+    if (uuid != null) query = query.eq('outlet_id', uuid);
+
+    final data = await query
         .order('is_active', ascending: false)
         .order('name');
 
@@ -107,6 +119,9 @@ class SupabaseServiceRepository {
         .ilike('name', name.trim())
         .eq('is_active', true);
 
+    final uuid = _outletUuid;
+    if (uuid != null) query = query.eq('outlet_id', uuid);
+
     if (excludeId != null) {
       query = query.neq('id', excludeId);
     }
@@ -117,10 +132,15 @@ class SupabaseServiceRepository {
 
   /// Get service count
   Future<int> getServiceCount() async {
-    final data = await _supabase.client
+    var query = _supabase.client
         .from('services')
         .select('id')
         .eq('is_active', true);
+
+    final uuid = _outletUuid;
+    if (uuid != null) query = query.eq('outlet_id', uuid);
+
+    final data = await query;
 
     return (data as List).length;
   }

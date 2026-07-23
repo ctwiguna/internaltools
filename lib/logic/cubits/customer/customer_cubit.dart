@@ -1,14 +1,14 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_laundry_offline_app/data/models/customer.dart';
-import 'package:flutter_laundry_offline_app/data/repositories/customer_repository.dart';
+import 'package:flutter_laundry_offline_app/data/repositories/hybrid_customer_repository.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/customer/customer_state.dart';
 
 class CustomerCubit extends Cubit<CustomerState> {
-  final CustomerRepository _customerRepository;
+  final HybridCustomerRepository _customerRepository;
   List<Customer> _customers = [];
 
-  CustomerCubit({CustomerRepository? customerRepository})
-      : _customerRepository = customerRepository ?? CustomerRepository(),
+  CustomerCubit({HybridCustomerRepository? customerRepository})
+      : _customerRepository = customerRepository ?? HybridCustomerRepository(),
         super(const CustomerInitial());
 
   List<Customer> get customers => _customers;
@@ -70,8 +70,8 @@ class CustomerCubit extends Cubit<CustomerState> {
     }
   }
 
-  /// Delete customer
-  Future<void> deleteCustomer(int id) async {
+  /// Delete customer (menerima int id lokal atau String UUID remote)
+  Future<void> deleteCustomer(dynamic id) async {
     emit(const CustomerLoading());
 
     try {
