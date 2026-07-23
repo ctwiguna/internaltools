@@ -89,14 +89,17 @@ class AuthCubit extends Cubit<AuthState> {
         return;
       }
 
-      // Check if it looks like an email (for online auth)
-      final isEmail = usernameOrEmail.contains('@');
+      // Username polos di-map ke email internal Supabase
+      // (mis. 'ctwiguna' -> 'ctwiguna@zennlaundry.internal')
+      final email = usernameOrEmail.contains('@')
+          ? usernameOrEmail.trim()
+          : '${usernameOrEmail.trim().toLowerCase()}@zennlaundry.internal';
 
-      // Try online auth first if connected and looks like email
-      if (_connectivity.isOnline && isEmail) {
+      // Coba login online (Supabase) dulu jika ada koneksi
+      if (_connectivity.isOnline) {
         try {
           final user = await _onlineAuthRepository.signIn(
-            email: usernameOrEmail,
+            email: email,
             password: password,
           );
           _currentUser = user;
@@ -107,10 +110,9 @@ class AuthCubit extends Cubit<AuthState> {
 
           emit(AuthAuthenticated(user));
           return;
-        } catch (e) {
-          // If online fails, don't fall back - show error
-          emit(AuthError('Login gagal: ${e.toString().replaceAll('Exception: ', '')}'));
-          return;
+        } catch (_) {
+          // Gagal online (password salah / akun belum ada / jaringan)
+          // -> lanjut coba login offline di bawah (masa transisi)
         }
       }
 

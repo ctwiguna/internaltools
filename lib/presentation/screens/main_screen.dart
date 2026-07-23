@@ -48,7 +48,10 @@ class _MainScreenState extends State<MainScreen> {
 
         final user = state.user;
         final isOwner = user.role == UserRole.owner;
-        final canAccessLaporan = user.username.toLowerCase() == 'ctwiguna';
+        // Username hasil login online berupa email
+        // (ctwiguna@zennlaundry.internal) -> bandingkan sebelum '@'
+        final canAccessLaporan =
+            user.username.split('@').first.toLowerCase() == 'ctwiguna';
 
         // Build navigation items based on role
         final navItems = <BottomNavigationBarItem>[
