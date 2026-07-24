@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_laundry_offline_app/core/theme/app_theme.dart';
 import 'package:flutter_laundry_offline_app/data/models/user.dart';
+import 'package:flutter_laundry_offline_app/logic/cubits/attendance/attendance_cubit.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/auth/auth_cubit.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/auth/auth_state.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/order/order_cubit.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/outlet/outlet_cubit.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/user/user_cubit.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/report/report_cubit.dart';
+import 'package:flutter_laundry_offline_app/presentation/screens/attendance/attendance_list_screen.dart';
 import 'package:flutter_laundry_offline_app/presentation/screens/dashboard/dashboard_screen.dart';
 import 'package:flutter_laundry_offline_app/presentation/screens/orders/order_list_screen.dart';
 import 'package:flutter_laundry_offline_app/presentation/screens/reports/report_screen.dart';
@@ -65,6 +67,12 @@ class _MainScreenState extends State<MainScreen> {
             activeIcon: Icon(Icons.receipt_long),
             label: 'Orders',
           ),
+          // Absensi bisa diakses SEMUA akun (termasuk kasir)
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.fact_check_outlined),
+            activeIcon: Icon(Icons.fact_check),
+            label: 'Absen',
+          ),
         ];
 
         // Laporan hanya bisa dibuka akun ctwiguna
@@ -98,6 +106,10 @@ class _MainScreenState extends State<MainScreen> {
           BlocProvider.value(
             value: _orderCubit,
             child: const OrderListScreen(),
+          ),
+          BlocProvider(
+            create: (_) => AttendanceCubit(),
+            child: const AttendanceListScreen(),
           ),
         ];
 

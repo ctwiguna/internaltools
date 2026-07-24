@@ -75,6 +75,7 @@ class _AttendanceCheckInScreenState extends State<AttendanceCheckInScreen> {
 
     context.read<AttendanceCubit>().checkIn(
       userId: user.id,
+      userRemoteId: user.remoteId,
       userName: user.name,
       checklist: checklist.cast<Map<String, String>>(),
       durationSec: durationSec,

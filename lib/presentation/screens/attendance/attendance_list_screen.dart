@@ -24,10 +24,18 @@ class _AttendanceListScreenState extends State<AttendanceListScreen> {
     _loadData();
   }
 
-  void _loadData() {
+void _loadData() {
     final authState = context.read<AuthCubit>().state;
     if (authState is AuthAuthenticated) {
-      context.read<AttendanceCubit>().loadAttendances(userId: authState.user.id);
+      final user = authState.user;
+      // Owner (ctwiguna) = mode monitoring: lihat semua absensi
+      // di outlet aktif. Akun lain hanya melihat absensinya sendiri.
+      final isOwnerMonitor =
+          user.username.split('@').first.toLowerCase() == 'ctwiguna';
+      context.read<AttendanceCubit>().loadAttendances(
+            userId: isOwnerMonitor ? null : user.id,
+            userRemoteId: isOwnerMonitor ? null : user.remoteId,
+          );
     }
   }
 
