@@ -16,7 +16,7 @@ import 'package:flutter_laundry_offline_app/logic/cubits/printer/printer_state.d
 import 'package:flutter_laundry_offline_app/core/services/whatsapp_service.dart';
 
 class OrderDetailScreen extends StatefulWidget {
-  final int orderId;
+  final dynamic orderId;
 
   const OrderDetailScreen({super.key, required this.orderId});
 
@@ -106,7 +106,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   child: InkWell(
                     onTap: () {
                       Navigator.pop(bottomContext);
-                      context.read<OrderCubit>().updateStatus(order.id!, status);
+                      context.read<OrderCubit>().updateStatus(order.remoteId ?? order.id!, status);
                     },
                     borderRadius: AppRadius.mdRadius,
                     child: Padding(
@@ -505,7 +505,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     authState is AuthAuthenticated ? authState.user.id : null;
 
                 this.context.read<OrderCubit>().addPayment(
-                      orderId: order.id!,
+                      orderId: order.remoteId ?? order.id!,
                       amount: amount,
                       method: selectedMethod,
                       receivedBy: userId,
@@ -1014,7 +1014,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              context.read<OrderCubit>().updateStatus(order.id!, newStatus);
+              context.read<OrderCubit>().updateStatus(order.remoteId ?? order.id!, newStatus);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: color,

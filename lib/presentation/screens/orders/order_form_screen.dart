@@ -384,6 +384,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
         .map((e) => OrderItem(
               orderId: 0,
               serviceId: e.service.id,
+              serviceRemoteId: e.service.remoteId,
               serviceName: e.service.name,
               quantity: e.quantity.toDouble(),
               unit: e.service.unit.value,
@@ -398,6 +399,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
               ? _customerPhoneController.text
               : null,
           customerId: _selectedCustomer?.id,
+          customerRemoteId: _selectedCustomer?.remoteId,
           items: orderItems,
           dueDate: _dueDate,
           notes: _notesController.text.isNotEmpty ? _notesController.text : null,

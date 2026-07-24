@@ -425,7 +425,7 @@ class _OrderListScreenState extends State<OrderListScreen> {
       MaterialPageRoute(
         builder: (_) => BlocProvider.value(
           value: context.read<OrderCubit>(),
-          child: OrderDetailScreen(orderId: order.id!),
+          child: OrderDetailScreen(orderId: order.remoteId ?? order.id!),
         ),
       ),
     );

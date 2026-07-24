@@ -39,6 +39,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _dashboardCubit = DashboardCubit()..loadDashboard();
+    // Reload konteks outlet setiap dashboard dibuka — label & data selalu
+    // mengikuti outlet profil user yang login, bukan sisa sesi sebelumnya.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<OutletCubit>().loadOutlets();
+    });
   }
 
   @override

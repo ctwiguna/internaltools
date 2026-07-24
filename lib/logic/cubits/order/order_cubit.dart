@@ -4,12 +4,12 @@ import 'package:flutter_laundry_offline_app/data/models/order.dart';
 import 'package:flutter_laundry_offline_app/data/models/order_item.dart';
 import 'package:flutter_laundry_offline_app/data/models/payment.dart';
 import 'package:flutter_laundry_offline_app/data/repositories/customer_repository.dart';
-import 'package:flutter_laundry_offline_app/data/repositories/order_repository.dart';
+import 'package:flutter_laundry_offline_app/data/repositories/hybrid_order_repository.dart';
 import 'package:flutter_laundry_offline_app/data/repositories/payment_repository.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/order/order_state.dart';
 
 class OrderCubit extends Cubit<OrderState> {
-  final OrderRepository _orderRepository;
+  final HybridOrderRepository _orderRepository;
   final PaymentRepository _paymentRepository;
   final CustomerRepository _customerRepository;
   List<Order> _orders = [];
@@ -18,10 +18,10 @@ class OrderCubit extends Cubit<OrderState> {
   bool _hasMore = true;
 
   OrderCubit({
-    OrderRepository? orderRepository,
+    HybridOrderRepository? orderRepository,
     PaymentRepository? paymentRepository,
     CustomerRepository? customerRepository,
-  })  : _orderRepository = orderRepository ?? OrderRepository(),
+  })  : _orderRepository = orderRepository ?? HybridOrderRepository(),
         _paymentRepository = paymentRepository ?? PaymentRepository(),
         _customerRepository = customerRepository ?? CustomerRepository(),
         super(const OrderInitial());
@@ -82,7 +82,8 @@ class OrderCubit extends Cubit<OrderState> {
   }
 
   /// Load order detail with items and payments
-  Future<void> loadOrderDetail(int id) async {
+  /// (id bisa int lokal atau String UUID remote)
+  Future<void> loadOrderDetail(dynamic id) async {
     emit(const OrderLoading());
 
     try {
@@ -102,6 +103,7 @@ class OrderCubit extends Cubit<OrderState> {
     required String customerName,
     String? customerPhone,
     int? customerId,
+    String? customerRemoteId,
     required List<OrderItem> items,
     required DateTime dueDate,
     String? notes,
@@ -122,9 +124,13 @@ class OrderCubit extends Cubit<OrderState> {
         return;
       }
 
-      // If manual input (no customerId), save customer to database
+      final isOnline = _orderRepository.isOnline;
+
+      // Mode offline: simpan customer ke SQLite lokal.
+      // Mode online: customer otomatis dicocokkan/dibuat di server
+      // berdasarkan nomor HP (lihat SupabaseOrderRepository.createOrder).
       int? finalCustomerId = customerId;
-      if (finalCustomerId == null) {
+      if (!isOnline && finalCustomerId == null) {
         try {
           final customer = customerPhone != null && customerPhone.trim().isNotEmpty
               ? await _customerRepository.getOrCreateByPhone(
@@ -151,8 +157,11 @@ class OrderCubit extends Cubit<OrderState> {
         totalPrice += item.subtotal;
       }
 
-      // Generate invoice
-      final invoiceNo = await InvoiceGenerator.generate();
+      // Generate invoice.
+      // Online: dibuat atomik di server (placeholder ditimpa).
+      // Offline: generator lokal.
+      final invoiceNo =
+          isOnline ? 'PENDING' : await InvoiceGenerator.generate();
 
       // Hitung kembalian (jika bayar lebih dari total)
       final change = initialPayment > totalPrice ? initialPayment - totalPrice : 0;
@@ -163,6 +172,7 @@ class OrderCubit extends Cubit<OrderState> {
       final order = Order(
         invoiceNo: invoiceNo,
         customerId: finalCustomerId,
+        customerRemoteId: customerRemoteId,
         customerName: customerName.trim(),
         customerPhone: customerPhone?.trim(),
         orderDate: DateTime.now(),
@@ -205,8 +215,8 @@ class OrderCubit extends Cubit<OrderState> {
     }
   }
 
-  /// Update order status
-  Future<void> updateStatus(int orderId, OrderStatus newStatus) async {
+  /// Update order status (orderId bisa int lokal atau String UUID remote)
+  Future<void> updateStatus(dynamic orderId, OrderStatus newStatus) async {
     emit(const OrderLoading());
 
     try {
@@ -220,10 +230,10 @@ class OrderCubit extends Cubit<OrderState> {
     }
   }
 
-  /// Add payment to order
+  /// Add payment to order (orderId bisa int lokal atau String UUID remote)
   /// Menyimpan pembayaran apa adanya beserta kembalian
   Future<void> addPayment({
-    required int orderId,
+    required dynamic orderId,
     required int amount,
     required PaymentMethod method,
     String? notes,
@@ -248,17 +258,37 @@ class OrderCubit extends Cubit<OrderState> {
       // Hitung kembalian jika bayar lebih dari sisa
       final change = amount > remaining ? amount - remaining : 0;
 
-      final payment = Payment(
-        orderId: orderId,
-        amount: amount, // Simpan apa adanya
-        change: change, // Simpan kembalian
-        paymentDate: DateTime.now(),
-        paymentMethod: method,
-        notes: notes,
-        receivedBy: receivedBy,
-      );
+      if (order.isRemote) {
+        // Mode online: payment langsung ke Supabase
+        final payment = Payment(
+          orderRemoteId: order.remoteId,
+          amount: amount, // Simpan apa adanya
+          change: change, // Simpan kembalian
+          paymentDate: DateTime.now(),
+          paymentMethod: method,
+          notes: notes,
+        );
 
-      await _paymentRepository.addPayment(payment);
+        final created = await _orderRepository.addPayment(payment);
+        if (created == null) {
+          emit(const OrderError('Gagal menyimpan pembayaran ke server'));
+          return;
+        }
+      } else {
+        // Mode offline: payment ke SQLite lokal
+        final payment = Payment(
+          orderId: orderId as int,
+          amount: amount, // Simpan apa adanya
+          change: change, // Simpan kembalian
+          paymentDate: DateTime.now(),
+          paymentMethod: method,
+          notes: notes,
+          receivedBy: receivedBy,
+        );
+
+        await _paymentRepository.addPayment(payment);
+      }
+
       emit(const OrderOperationSuccess('Pembayaran berhasil ditambahkan'));
 
       // Reload order detail
@@ -268,8 +298,8 @@ class OrderCubit extends Cubit<OrderState> {
     }
   }
 
-  /// Delete order
-  Future<void> deleteOrder(int orderId) async {
+  /// Delete order (orderId bisa int lokal atau String UUID remote)
+  Future<void> deleteOrder(dynamic orderId) async {
     emit(const OrderLoading());
 
     try {

@@ -1,4 +1,5 @@
 import 'package:flutter_laundry_offline_app/core/services/connectivity_service.dart';
+import 'package:flutter_laundry_offline_app/core/services/outlet_service.dart';
 import 'package:flutter_laundry_offline_app/core/services/supabase_service.dart';
 import 'package:flutter_laundry_offline_app/data/models/order.dart';
 import 'package:flutter_laundry_offline_app/data/models/order_item.dart';
@@ -13,10 +14,12 @@ class HybridOrderRepository {
   final ConnectivityService _connectivity;
   final SupabaseService _supabase;
 
-  /// Current outlet ID for online operations
-  String? _outletId;
+  /// Manual override outlet ID untuk operasi online (opsional).
+  /// Default: otomatis mengikuti outlet aktif di OutletService.
+  String? _manualOutletId;
 
-  /// Current user remote ID for online operations
+  /// Manual override user remote ID (opsional).
+  /// Default: user yang sedang login di Supabase.
   String? _userRemoteId;
 
   HybridOrderRepository({
@@ -29,9 +32,10 @@ class HybridOrderRepository {
         _connectivity = connectivity ?? ConnectivityService.instance,
         _supabase = supabase ?? SupabaseService.instance;
 
-  /// Set the outlet ID for online operations
+  /// Set outlet ID manual (opsional — biasanya tidak perlu karena
+  /// otomatis mengikuti outlet aktif di OutletService)
   void setOutletId(String? outletId) {
-    _outletId = outletId;
+    _manualOutletId = outletId;
   }
 
   /// Set the user remote ID for online operations
@@ -39,9 +43,20 @@ class HybridOrderRepository {
     _userRemoteId = userRemoteId;
   }
 
+  /// Outlet UUID untuk operasi online — mengikuti outlet aktif
+  String? get _outletId =>
+      _manualOutletId ?? OutletService.instance.currentOutletUuid;
+
+  /// User UUID untuk operasi online — mengikuti user yang login
+  String? get _effectiveUserRemoteId =>
+      _userRemoteId ?? _supabase.client.auth.currentUser?.id;
+
   /// Check if should use online mode
   bool get _shouldUseOnline =>
       _connectivity.isOnline && _supabase.isAuthenticated && _outletId != null;
+
+  /// Apakah repository sedang beroperasi online (dipakai cubit)
+  bool get isOnline => _shouldUseOnline;
 
   /// Get all orders with optional filter and pagination
   Future<List<Order>> getAllOrders({
@@ -93,11 +108,11 @@ class HybridOrderRepository {
         return await _onlineRepo.createOrder(
           order: order.copyWith(
             outletId: _outletId,
-            createdByRemoteId: _userRemoteId,
+            createdByRemoteId: _effectiveUserRemoteId,
           ),
           items: items,
           initialPayment: initialPayment?.copyWith(
-            receivedByRemoteId: _userRemoteId,
+            receivedByRemoteId: _effectiveUserRemoteId,
           ),
         );
       } catch (_) {
@@ -224,7 +239,7 @@ class HybridOrderRepository {
     if (_shouldUseOnline && payment.orderRemoteId != null) {
       try {
         return await _onlineRepo.addPayment(
-          payment.copyWith(receivedByRemoteId: _userRemoteId),
+          payment.copyWith(receivedByRemoteId: _effectiveUserRemoteId),
         );
       } catch (_) {
         // Ignore errors
