@@ -1,3 +1,4 @@
+import '../../widgets/cash_drawer_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_laundry_offline_app/core/services/connectivity_service.dart';
@@ -97,6 +98,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 children: [
                                   // Cloud Sync Status Card - Premium Feature
                                   _buildCloudSyncCard(),
+                                  const CashDrawerCard(),
 
                                   const SizedBox(height: AppSpacing.lg),
 
