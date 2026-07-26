@@ -1,6 +1,8 @@
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:flutter_laundry_offline_app/data/models/order.dart';
 import 'package:flutter_laundry_offline_app/data/repositories/settings_repository.dart';
+import 'package:flutter_laundry_offline_app/core/services/outlet_service.dart';
+import 'package:flutter_laundry_offline_app/core/services/supabase_service.dart';
 import 'package:flutter_laundry_offline_app/core/utils/currency_formatter.dart';
 import 'package:flutter_laundry_offline_app/core/utils/date_formatter.dart';
 import 'package:flutter_laundry_offline_app/core/constants/app_constants.dart';
@@ -14,13 +16,49 @@ class LaundryPrint {
 
   Future<Map<String, String>> _getLaundryInfo() async {
     final settings = await _settingsRepository.getAllSettings();
+    var name = settings[AppConstants.keyLaundryName] ??
+        AppConstants.defaultLaundryName;
+    var address = settings[AppConstants.keyLaundryAddress] ??
+        AppConstants.defaultLaundryAddress;
+    var phone = settings[AppConstants.keyLaundryPhone] ??
+        AppConstants.defaultLaundryPhone;
+    String outletName = '';
+    String socialMedia = '';
+
+    // Jika online & ada outlet aktif: pakai nama/alamat/telepon outlet
+    // dari Supabase (alamat & telepon fallback ke pengaturan global
+    // bila kolom outlet kosong).
+    try {
+      final uuid = OutletService.instance.currentOutletUuid;
+      if (uuid != null) {
+        final row = await SupabaseService.instance.client
+            .from('outlets')
+            .select('name, address, phone, social_media')
+            .eq('id', uuid)
+            .maybeSingle();
+        if (row != null) {
+          outletName = (row['name'] as String?) ?? '';
+          socialMedia = (row['social_media'] as String?) ?? '';
+          final outletAddress = row['address'] as String?;
+          if (outletAddress != null && outletAddress.isNotEmpty) {
+            address = outletAddress;
+          }
+          final outletPhone = row['phone'] as String?;
+          if (outletPhone != null && outletPhone.isNotEmpty) {
+            phone = outletPhone;
+          }
+        }
+      }
+    } catch (_) {
+      // Offline / gagal fetch -> pakai pengaturan global saja
+    }
+
     return {
-      'name': settings[AppConstants.keyLaundryName] ??
-          AppConstants.defaultLaundryName,
-      'address': settings[AppConstants.keyLaundryAddress] ??
-          AppConstants.defaultLaundryAddress,
-      'phone': settings[AppConstants.keyLaundryPhone] ??
-          AppConstants.defaultLaundryPhone,
+      'name': name,
+      'outlet': outletName,
+      'social_media': socialMedia,
+      'address': address,
+      'phone': phone,
     };
   }
 
@@ -59,6 +97,17 @@ class LaundryPrint {
       ),
     );
 
+    // Nama outlet aktif (pembeda struk antar outlet)
+    if ((laundryInfo['outlet'] ?? '').isNotEmpty) {
+      bytes += generator.text(
+        'Outlet ${laundryInfo['outlet']}',
+        styles: const PosStyles(
+          bold: true,
+          align: PosAlign.center,
+        ),
+      );
+    }
+
     bytes += generator.text(
       laundryInfo['address'] ?? '',
       styles: const PosStyles(
@@ -74,6 +123,17 @@ class LaundryPrint {
         align: PosAlign.center,
       ),
     );
+
+    // Social media outlet (jika diisi)
+    if ((laundryInfo['social_media'] ?? '').isNotEmpty) {
+      bytes += generator.text(
+        laundryInfo['social_media']!,
+        styles: const PosStyles(
+          bold: false,
+          align: PosAlign.center,
+        ),
+      );
+    }
 
     bytes += generator.text(
       separator,
@@ -378,6 +438,17 @@ class LaundryPrint {
         width: PosTextSize.size1,
       ),
     );
+
+    // Nama outlet aktif (pembeda struk antar outlet)
+    if ((laundryInfo['outlet'] ?? '').isNotEmpty) {
+      bytes += generator.text(
+        'Outlet ${laundryInfo['outlet']}',
+        styles: const PosStyles(
+          bold: true,
+          align: PosAlign.center,
+        ),
+      );
+    }
 
     bytes += generator.text(
       separator,
