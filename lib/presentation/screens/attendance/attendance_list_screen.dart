@@ -1,3 +1,4 @@
+import 'package:flutter_laundry_offline_app/presentation/widgets/weekly_attendance_recap.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_laundry_offline_app/core/constants/app_constants.dart';
@@ -167,7 +168,9 @@ void _loadData() {
                   ),
 
                 const SizedBox(height: AppSpacing.lg),
-
+            // Rekap mingguan (owner saja)
+            const WeeklyAttendanceRecap(),
+            const SizedBox(height: AppSpacing.lg),
                 // List header
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
