@@ -1,3 +1,7 @@
+import 'package:flutter_laundry_offline_app/core/services/outlet_service.dart';
+import 'package:flutter_laundry_offline_app/data/models/outlet.dart';
+import 'package:flutter_laundry_offline_app/logic/cubits/outlet/outlet_cubit.dart';
+import 'package:flutter_laundry_offline_app/logic/cubits/outlet/outlet_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_laundry_offline_app/core/theme/app_theme.dart';
@@ -22,7 +26,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
   UserRole _selectedRole = UserRole.kasir;
   bool _obscurePassword = true;
   bool _isLoading = false;
-
+  String? _selectedOutletUuid;
   bool get isEditing => widget.user != null;
 
   @override
@@ -32,6 +36,9 @@ class _UserFormScreenState extends State<UserFormScreen> {
       _usernameController.text = widget.user!.username;
       _nameController.text = widget.user!.name;
       _selectedRole = widget.user!.role;
+    } else {
+      // Mode buat user baru: default ke outlet yang sedang aktif
+      _selectedOutletUuid = OutletService.instance.currentOutletUuid;
     }
   }
 
@@ -57,6 +64,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
               password: _passwordController.text,
               name: _nameController.text,
               role: _selectedRole,
+              outletUuid: _selectedOutletUuid,
             );
       }
     }
@@ -270,6 +278,12 @@ class _UserFormScreenState extends State<UserFormScreen> {
                             _buildInputLabel('Role'),
                             const SizedBox(height: AppSpacing.sm),
                             _buildRoleSelector(),
+                              if (!isEditing && _selectedRole == UserRole.kasir) ...[
+                              const SizedBox(height: AppSpacing.lg),
+                              _buildInputLabel('Akses Outlet'),
+                              const SizedBox(height: AppSpacing.sm),
+                              _buildOutletSelector(),
+                            ],
                           ],
                         ),
                       ),
@@ -451,7 +465,29 @@ class _UserFormScreenState extends State<UserFormScreen> {
       ],
     );
   }
-
+  Widget _buildOutletSelector() {
+    return BlocBuilder<OutletCubit, OutletState>(
+      builder: (context, state) {
+        final outlets = state is OutletLoaded ? state.outlets : <Outlet>[];
+        return DropdownButtonFormField<String>(
+          initialValue: _selectedOutletUuid,
+          decoration: _buildInputDecoration(
+            hintText: 'Pilih outlet untuk kasir ini',
+            prefixIcon: Icons.store,
+          ),
+          items: [
+            for (final o in outlets)
+              DropdownMenuItem(value: o.remoteId, child: Text(o.name)),
+          ],
+          onChanged: (v) => setState(() => _selectedOutletUuid = v),
+          validator: (v) =>
+              _selectedRole == UserRole.kasir && v == null
+                  ? 'Pilih outlet'
+                  : null,
+        );
+      },
+    );
+  }
   Widget _buildRoleOption({
     required UserRole role,
     required IconData icon,

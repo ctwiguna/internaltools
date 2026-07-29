@@ -20,6 +20,33 @@ class UserRepository {
     return result.map((map) => User.fromMap(map)).toList();
   }
 
+  /// Get all users dari Supabase (tabel profiles) — sumber kebenaran
+  /// daftar akun saat online, sama di semua perangkat.
+  Future<List<User>> getAllUsersOnline() async {
+    final data = await SupabaseService.instance.client
+        .from('profiles')
+        .select('id, username, name, role, outlet_id, outlets(name)')
+        .order('role')
+        .order('name');
+
+    return (data as List).map((m) {
+      final map = m as Map<String, dynamic>;
+      final outlet = map['outlets'] as Map<String, dynamic>?;
+      return User(
+        remoteId: map['id'] as String?,
+        username: (map['username'] as String?) ?? '',
+        passwordHash: '',
+        name: (map['name'] as String?) ?? '',
+        role: (map['role'] as String?) == 'owner'
+            ? UserRole.owner
+            : UserRole.kasir,
+        isActive: true,
+        outletId: map['outlet_id'] as String?,
+        outletName: outlet?['name'] as String?,
+      );
+    }).toList();
+  }
+
   /// Get all active users
   Future<List<User>> getActiveUsers() async {
     final db = await _databaseHelper.database;
@@ -61,6 +88,7 @@ class UserRepository {
     required String password,
     required String name,
     required UserRole role,
+    String? outletUuid,
   }) async {
     final db = await _databaseHelper.database;
 
@@ -80,6 +108,30 @@ class UserRepository {
     final passwordValidation = PasswordHelper.validatePassword(password);
     if (passwordValidation != null) {
       throw Exception(passwordValidation);
+    }
+
+    // Jika online & kasir: buat akun auth sungguhan + profile
+    // (dengan outlet pilihan) lewat Edge Function 'create-user'.
+    if (role == UserRole.kasir && SupabaseService.instance.isAuthenticated) {
+      if (outletUuid == null) {
+        throw Exception('Outlet akses wajib dipilih untuk akun kasir');
+      }
+      final email = '${username.toLowerCase().trim()}@zennlaundry.internal';
+      final response =
+          await SupabaseService.instance.client.functions.invoke(
+        'create-user',
+        body: {
+          'email': email,
+          'password': password,
+          'username': username.toLowerCase().trim(),
+          'name': name.trim(),
+          'outlet_id': outletUuid,
+          'role': role.value,
+        },
+      );
+      if (response.status != 200) {
+        throw Exception('Gagal membuat akun online: ${response.data}');
+      }
     }
 
     // Hash password

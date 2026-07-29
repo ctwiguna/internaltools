@@ -1,4 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_laundry_offline_app/core/services/connectivity_service.dart';
+import 'package:flutter_laundry_offline_app/core/services/supabase_service.dart';
 import 'package:flutter_laundry_offline_app/data/models/user.dart';
 import 'package:flutter_laundry_offline_app/data/repositories/user_repository.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/user/user_state.dart';
@@ -7,9 +9,14 @@ class UserCubit extends Cubit<UserState> {
   final UserRepository _userRepository;
   List<User> _users = [];
 
+  final ConnectivityService _connectivity = ConnectivityService.instance;
+  final SupabaseService _supabase = SupabaseService.instance;
+
   UserCubit({UserRepository? userRepository})
       : _userRepository = userRepository ?? UserRepository(),
         super(const UserInitial());
+
+  bool get _isOnline => _connectivity.isOnline && _supabase.isAuthenticated;
 
   List<User> get users => _users;
 
@@ -18,7 +25,12 @@ class UserCubit extends Cubit<UserState> {
     emit(const UserLoading());
 
     try {
-      _users = await _userRepository.getAllUsers();
+      // Online: daftar user dari Supabase (sama di semua perangkat)
+      if (_isOnline) {
+        _users = await _userRepository.getAllUsersOnline();
+      } else {
+        _users = await _userRepository.getAllUsers();
+      }
       emit(UserLoaded(_users));
     } catch (e) {
       emit(UserError(e.toString().replaceAll('Exception: ', '')));
@@ -31,6 +43,7 @@ class UserCubit extends Cubit<UserState> {
     required String password,
     required String name,
     required UserRole role,
+    String? outletUuid,
   }) async {
     emit(const UserLoading());
 
@@ -40,6 +53,7 @@ class UserCubit extends Cubit<UserState> {
         password: password,
         name: name,
         role: role,
+        outletUuid: outletUuid,
       );
 
       emit(const UserOperationSuccess('User berhasil ditambahkan'));
