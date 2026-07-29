@@ -5,6 +5,7 @@ class Outlet extends Equatable {
   final int? id;
   final String? remoteId; // Supabase UUID
   final String name;
+  final String? displayName; // Nama laundry yang tercetak di nota
   final String? address;
   final String? phone;
   final String invoicePrefix;
@@ -16,6 +17,7 @@ class Outlet extends Equatable {
     this.id,
     this.remoteId,
     required this.name,
+    this.displayName,
     this.address,
     this.phone,
     this.invoicePrefix = 'INV',
@@ -32,6 +34,7 @@ class Outlet extends Equatable {
       'id': id,
       'remote_id': remoteId,
       'name': name,
+      'display_name': displayName,
       'address': address,
       'phone': phone,
       'invoice_prefix': invoicePrefix,
@@ -46,6 +49,7 @@ class Outlet extends Equatable {
     return {
       if (remoteId != null) 'id': remoteId,
       'name': name,
+      'display_name': displayName,
       'address': address,
       'phone': phone,
       'invoice_prefix': invoicePrefix,
@@ -58,6 +62,7 @@ class Outlet extends Equatable {
       id: TypeHelper.asNullableInt(map['id']),
       remoteId: TypeHelper.asNullableString(map['remote_id']),
       name: map['name'] as String,
+      displayName: TypeHelper.asNullableString(map['display_name']),
       address: TypeHelper.asNullableString(map['address']),
       phone: TypeHelper.asNullableString(map['phone']),
       invoicePrefix: TypeHelper.asNullableString(map['invoice_prefix']) ?? 'INV',
@@ -75,6 +80,7 @@ class Outlet extends Equatable {
     return Outlet(
       remoteId: TypeHelper.asNullableString(map['id']),
       name: map['name'] as String,
+      displayName: TypeHelper.asNullableString(map['display_name']),
       address: TypeHelper.asNullableString(map['address']),
       phone: TypeHelper.asNullableString(map['phone']),
       invoicePrefix: TypeHelper.asNullableString(map['invoice_prefix']) ?? 'INV',
@@ -92,6 +98,7 @@ class Outlet extends Equatable {
     int? id,
     String? remoteId,
     String? name,
+    String? displayName,
     String? address,
     String? phone,
     String? invoicePrefix,
@@ -103,6 +110,7 @@ class Outlet extends Equatable {
       id: id ?? this.id,
       remoteId: remoteId ?? this.remoteId,
       name: name ?? this.name,
+      displayName: displayName ?? this.displayName,
       address: address ?? this.address,
       phone: phone ?? this.phone,
       invoicePrefix: invoicePrefix ?? this.invoicePrefix,
@@ -117,6 +125,7 @@ class Outlet extends Equatable {
         id,
         remoteId,
         name,
+        displayName,
         address,
         phone,
         invoicePrefix,

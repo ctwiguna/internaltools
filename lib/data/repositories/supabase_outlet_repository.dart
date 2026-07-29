@@ -30,6 +30,7 @@ class SupabaseOutletRepository {
         .from('outlets')
         .insert({
           'name': outlet.name,
+          'display_name': outlet.displayName,
           'address': outlet.address,
           'phone': outlet.phone,
           'invoice_prefix': outlet.invoicePrefix,
@@ -51,6 +52,7 @@ class SupabaseOutletRepository {
         .from('outlets')
         .update({
           'name': outlet.name,
+          'display_name': outlet.displayName,
           'address': outlet.address,
           'phone': outlet.phone,
           'invoice_prefix': outlet.invoicePrefix,

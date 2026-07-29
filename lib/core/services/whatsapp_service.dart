@@ -1,6 +1,8 @@
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_laundry_offline_app/data/models/order.dart';
 import 'package:flutter_laundry_offline_app/data/repositories/settings_repository.dart';
+import 'package:flutter_laundry_offline_app/core/services/outlet_service.dart';
+import 'package:flutter_laundry_offline_app/core/services/supabase_service.dart';
 import 'package:flutter_laundry_offline_app/core/utils/currency_formatter.dart';
 import 'package:flutter_laundry_offline_app/core/utils/date_formatter.dart';
 import 'package:flutter_laundry_offline_app/core/constants/app_constants.dart';
@@ -12,12 +14,60 @@ class WhatsAppService {
 
   final SettingsRepository _settingsRepository = SettingsRepository();
 
+  /// Info laundry untuk pesan WA.
+  /// Jika online & ada outlet aktif: nama brand + nama outlet + alamat,
+  /// telepon, dan social media diambil dari data OUTLET di Supabase
+  /// (fallback ke pengaturan global bila kolom outlet kosong / offline).
   Future<Map<String, String>> _getLaundryInfo() async {
     final settings = await _settingsRepository.getAllSettings();
+    var name = settings[AppConstants.keyLaundryName] ??
+        AppConstants.defaultLaundryName;
+    var address = settings[AppConstants.keyLaundryAddress] ??
+        AppConstants.defaultLaundryAddress;
+    var phone = settings[AppConstants.keyLaundryPhone] ??
+        AppConstants.defaultLaundryPhone;
+    String outletName = '';
+    String outletDisplayName = '';
+    String socialMedia = '';
+
+    try {
+      final uuid = OutletService.instance.currentOutletUuid;
+      if (uuid != null) {
+        final row = await SupabaseService.instance.client
+            .from('outlets')
+            .select('name, display_name, address, phone, social_media')
+            .eq('id', uuid)
+            .maybeSingle();
+        if (row != null) {
+          outletName = (row['name'] as String?) ?? '';
+          outletDisplayName = (row['display_name'] as String?) ?? '';
+          socialMedia = (row['social_media'] as String?) ?? '';
+          final outletAddress = row['address'] as String?;
+          if (outletAddress != null && outletAddress.isNotEmpty) {
+            address = outletAddress;
+          }
+          final outletPhone = row['phone'] as String?;
+          if (outletPhone != null && outletPhone.isNotEmpty) {
+            phone = outletPhone;
+          }
+        }
+      }
+    } catch (_) {
+      // Offline / gagal fetch -> pakai pengaturan global saja
+    }
+
+    // Nama tercetak: display_name outlet (nama laundry per outlet),
+    // fallback "Brand - Outlet", lalu brand global.
+    final displayName = outletDisplayName.isNotEmpty
+        ? outletDisplayName
+        : (outletName.isNotEmpty ? '$name - $outletName' : name);
+
     return {
-      'name': settings[AppConstants.keyLaundryName] ?? AppConstants.defaultLaundryName,
-      'address': settings[AppConstants.keyLaundryAddress] ?? AppConstants.defaultLaundryAddress,
-      'phone': settings[AppConstants.keyLaundryPhone] ?? AppConstants.defaultLaundryPhone,
+      'name': displayName,
+      'outlet': outletName,
+      'address': address,
+      'phone': phone,
+      'social_media': socialMedia,
     };
   }
 
@@ -28,7 +78,8 @@ class WhatsAppService {
     }
 
     final laundryInfo = await _getLaundryInfo();
-    final message = _buildReceiptMessage(order, laundryInfo);
+    final receiverName = await _getReceiverName(order);
+    final message = _buildReceiptMessage(order, laundryInfo, receiverName);
     final phoneNumber = order.whatsappNumber;
 
     if (phoneNumber.isEmpty) {
@@ -77,13 +128,35 @@ class WhatsAppService {
     }
   }
 
-  String _buildReceiptMessage(Order order, Map<String, String> laundryInfo) {
+  /// Nama karyawan penerima order: dari profil pembuat order
+  /// (created_by), fallback ke akun yang sedang login.
+  Future<String> _getReceiverName(Order order) async {
+    try {
+      final client = SupabaseService.instance.client;
+      final creatorId =
+          order.createdByRemoteId ?? client.auth.currentUser?.id;
+      if (creatorId == null) return '';
+      final row = await client
+          .from('profiles')
+          .select('name')
+          .eq('id', creatorId)
+          .maybeSingle();
+      return (row?['name'] as String?) ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  String _buildReceiptMessage(Order order, Map<String, String> laundryInfo, String receiverName) {
     final buffer = StringBuffer();
 
     // Header
     buffer.writeln('*${laundryInfo['name']}*');
     buffer.writeln(laundryInfo['address']);
     buffer.writeln('Telp: ${laundryInfo['phone']}');
+    if ((laundryInfo['social_media'] ?? '').isNotEmpty) {
+      buffer.writeln(laundryInfo['social_media']);
+    }
     buffer.writeln('================================');
     buffer.writeln();
 
@@ -92,6 +165,9 @@ class WhatsAppService {
     buffer.writeln('No: ${order.invoiceNumber}');
     buffer.writeln('Tgl: ${DateFormatter.formatDateTime(order.createdAt ?? DateTime.now())}');
     buffer.writeln('Pelanggan: ${order.customerName}');
+    if (receiverName.isNotEmpty) {
+      buffer.writeln('Penerima order: $receiverName');
+    }
     buffer.writeln('Status: ${order.status.displayName}');
     buffer.writeln();
 
@@ -189,6 +265,9 @@ class WhatsAppService {
     buffer.writeln('---');
     buffer.writeln('${laundryInfo['name']}');
     buffer.writeln('Telp: ${laundryInfo['phone']}');
+    if ((laundryInfo['social_media'] ?? '').isNotEmpty) {
+      buffer.writeln(laundryInfo['social_media']);
+    }
 
     return buffer.toString();
   }

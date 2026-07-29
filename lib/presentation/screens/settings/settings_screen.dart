@@ -1,3 +1,4 @@
+import 'package:flutter_laundry_offline_app/data/models/outlet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -199,6 +200,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  /// Simpan perubahan info outlet aktif (nama/alamat/HP) ke Supabase.
+  void _updateOutletInfo(Outlet outlet) {
+    context.read<OutletCubit>().updateOutlet(outlet);
+  }
+
   void _showEditDialog({
     required String title,
     required String currentValue,
@@ -381,69 +387,88 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           // Outlet Management Section (NEW)
                           _buildOutletSection(context),
 
-                          // Laundry Info Section
-                          _buildSection(
-                            title: 'Informasi Laundry',
-                            children: [
-                              _buildSettingTile(
-                                context: context,
-                                icon: Icons.store,
-                                title: 'Nama Laundry',
-                                subtitle:
-                                    laundryInfo?.name ??
-                                    AppConstants.defaultLaundryName,
-                                onTap: () => _showEditDialog(
-                                  title: 'Edit Nama Laundry',
-                                  currentValue:
-                                      laundryInfo?.name ??
-                                      AppConstants.defaultLaundryName,
-                                  hint: 'Masukkan nama laundry',
-                                  icon: Icons.store,
-                                  onSave: (value) =>
-                                      _settingsCubit.updateLaundryName(value),
-                                ),
-                              ),
-                              _buildDivider(),
-                              _buildSettingTile(
-                                context: context,
-                                icon: Icons.location_on,
-                                title: 'Alamat',
-                                subtitle:
-                                    laundryInfo?.address ??
-                                    AppConstants.defaultLaundryAddress,
-                                onTap: () => _showEditDialog(
-                                  title: 'Edit Alamat',
-                                  currentValue:
-                                      laundryInfo?.address ??
-                                      AppConstants.defaultLaundryAddress,
-                                  hint: 'Masukkan alamat laundry',
-                                  icon: Icons.location_on,
-                                  maxLines: 2,
-                                  onSave: (value) => _settingsCubit
-                                      .updateLaundryAddress(value),
-                                ),
-                              ),
-                              _buildDivider(),
-                              _buildSettingTile(
-                                context: context,
-                                icon: Icons.phone,
-                                title: 'Nomor HP',
-                                subtitle:
-                                    laundryInfo?.phone ??
-                                    AppConstants.defaultLaundryPhone,
-                                onTap: () => _showEditDialog(
-                                  title: 'Edit Nomor HP',
-                                  currentValue:
-                                      laundryInfo?.phone ??
-                                      AppConstants.defaultLaundryPhone,
-                                  hint: 'Masukkan nomor HP',
-                                  icon: Icons.phone,
-                                  keyboardType: TextInputType.phone,
-                                  onSave: (value) =>
-                                      _settingsCubit.updateLaundryPhone(value),
-                                ),
-                              ),
-                            ],
+                          // Laundry Info Section (per outlet aktif)
+                          BlocBuilder<OutletCubit, OutletState>(
+                            builder: (context, outletState) {
+                              final currentOutlet = outletState is OutletLoaded
+                                  ? outletState.currentOutlet
+                                  : null;
+                              final outlet = currentOutlet;
+                              return _buildSection(
+                                title: 'Informasi Laundry (Outlet Aktif)',
+                                children: [
+                                  _buildSettingTile(
+                                    context: context,
+                                    icon: Icons.store,
+                                    title: 'Nama Laundry',
+                                    subtitle: outlet?.displayName ??
+                                        outlet?.name ??
+                                        '-',
+                                    onTap: outlet == null
+                                        ? () {}
+                                        : () => _showEditDialog(
+                                              title: 'Edit Nama Laundry',
+                                              currentValue:
+                                                  outlet.displayName ??
+                                                      outlet.name,
+                                              hint:
+                                                  'Nama yang tercetak di nota (misal: Temcy Laundry)',
+                                              icon: Icons.store,
+                                              onSave: (value) =>
+                                                  _updateOutletInfo(
+                                                outlet.copyWith(
+                                                    displayName:
+                                                        value.trim()),
+                                              ),
+                                            ),
+                                  ),
+                                  _buildDivider(),
+                                  _buildSettingTile(
+                                    context: context,
+                                    icon: Icons.location_on,
+                                    title: 'Alamat',
+                                    subtitle: outlet?.address ?? '-',
+                                    onTap: outlet == null
+                                        ? () {}
+                                        : () => _showEditDialog(
+                                              title: 'Edit Alamat',
+                                              currentValue:
+                                                  outlet.address ?? '',
+                                              hint: 'Masukkan alamat laundry',
+                                              icon: Icons.location_on,
+                                              maxLines: 2,
+                                              onSave: (value) =>
+                                                  _updateOutletInfo(
+                                                outlet.copyWith(
+                                                    address: value.trim()),
+                                              ),
+                                            ),
+                                  ),
+                                  _buildDivider(),
+                                  _buildSettingTile(
+                                    context: context,
+                                    icon: Icons.phone,
+                                    title: 'Nomor HP',
+                                    subtitle: outlet?.phone ?? '-',
+                                    onTap: outlet == null
+                                        ? () {}
+                                        : () => _showEditDialog(
+                                              title: 'Edit Nomor HP',
+                                              currentValue: outlet.phone ?? '',
+                                              hint: 'Masukkan nomor HP',
+                                              icon: Icons.phone,
+                                              keyboardType:
+                                                  TextInputType.phone,
+                                              onSave: (value) =>
+                                                  _updateOutletInfo(
+                                                outlet.copyWith(
+                                                    phone: value.trim()),
+                                              ),
+                                            ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
 
                           // Service Management Section

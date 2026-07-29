@@ -18,6 +18,9 @@ import 'package:flutter_laundry_offline_app/logic/cubits/order/order_state.dart'
 import 'package:flutter_laundry_offline_app/logic/cubits/service/service_cubit.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/service/service_state.dart';
 
+/// Kunci stabil untuk membandingkan layanan: pakai UUID Supabase
+/// untuk layanan online, fallback ke id lokal.
+Object? _serviceKey(Service s) => s.remoteId ?? s.id;
 class OrderFormScreen extends StatefulWidget {
   const OrderFormScreen({super.key});
 
@@ -57,7 +60,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
 
   void _toggleItem(Service service) {
     setState(() {
-      final existing = _items.indexWhere((e) => e.service.id == service.id);
+      final existing = _items.indexWhere((e) => _serviceKey(e.service) == _serviceKey(service));
       if (existing >= 0) {
         // Sudah ada, hapus dari list
         _items.removeAt(existing);
@@ -871,7 +874,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
             ),
             itemBuilder: (context, index) {
               final service = services[index];
-              final isSelected = _items.any((e) => e.service.id == service.id);
+              final isSelected = _items.any((e) => _serviceKey(e.service) == _serviceKey(service));
 
               return InkWell(
                 onTap: () => _toggleItem(service),

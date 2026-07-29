@@ -23,6 +23,7 @@ class LaundryPrint {
     var phone = settings[AppConstants.keyLaundryPhone] ??
         AppConstants.defaultLaundryPhone;
     String outletName = '';
+    String outletDisplayName = '';
     String socialMedia = '';
 
     // Jika online & ada outlet aktif: pakai nama/alamat/telepon outlet
@@ -33,11 +34,12 @@ class LaundryPrint {
       if (uuid != null) {
         final row = await SupabaseService.instance.client
             .from('outlets')
-            .select('name, address, phone, social_media')
+            .select('name, display_name, address, phone, social_media')
             .eq('id', uuid)
             .maybeSingle();
         if (row != null) {
           outletName = (row['name'] as String?) ?? '';
+          outletDisplayName = (row['display_name'] as String?) ?? '';
           socialMedia = (row['social_media'] as String?) ?? '';
           final outletAddress = row['address'] as String?;
           if (outletAddress != null && outletAddress.isNotEmpty) {
@@ -53,8 +55,13 @@ class LaundryPrint {
       // Offline / gagal fetch -> pakai pengaturan global saja
     }
 
+    // Nama tercetak di header struk: display_name outlet
+    // (nama laundry per outlet), fallback ke brand global.
+    final printedName =
+        outletDisplayName.isNotEmpty ? outletDisplayName : name;
+
     return {
-      'name': name,
+      'name': printedName,
       'outlet': outletName,
       'social_media': socialMedia,
       'address': address,
