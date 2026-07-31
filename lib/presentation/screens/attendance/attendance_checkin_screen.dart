@@ -27,6 +27,9 @@ class _AttendanceCheckInScreenState extends State<AttendanceCheckInScreen> {
     {'item': 'Lemari, meja, toilet dirapikan', 'checked': false},
   ];
 
+  final TextEditingController _lipatController = TextEditingController();
+  final TextEditingController _setrikaController = TextEditingController();
+
   bool _isSubmitting = false;
   DateTime? _startTime;
 
@@ -34,6 +37,13 @@ class _AttendanceCheckInScreenState extends State<AttendanceCheckInScreen> {
   void initState() {
     super.initState();
     _startTime = DateTime.now();
+  }
+
+  @override
+  void dispose() {
+    _lipatController.dispose();
+    _setrikaController.dispose();
+    super.dispose();
   }
 
   bool get _allChecked => _checklistItems.every((i) => i['checked'] == true);
@@ -45,6 +55,12 @@ class _AttendanceCheckInScreenState extends State<AttendanceCheckInScreen> {
       _checklistItems[index]['checked'] = value ?? false;
       _checklistItems[index]['checked_at'] = DateTime.now().toIso8601String();
     });
+  }
+
+  double _parseKg(String text) {
+    final normalized = text.trim().replaceAll(',', '.');
+    if (normalized.isEmpty) return 0;
+    return double.tryParse(normalized) ?? 0;
   }
 
   void _submit() {
@@ -79,6 +95,47 @@ class _AttendanceCheckInScreenState extends State<AttendanceCheckInScreen> {
       userName: user.name,
       checklist: checklist.cast<Map<String, String>>(),
       durationSec: durationSec,
+      lipatKg: _parseKg(_lipatController.text),
+      setrikaKg: _parseKg(_setrikaController.text),
+    );
+  }
+
+  Widget _buildKgField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      style: AppTypography.bodyMedium,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: AppTypography.bodySmall
+            .copyWith(color: AppThemeColors.textSecondary),
+        prefixIcon: Icon(icon, color: AppThemeColors.primary, size: 20),
+        suffixText: 'kg',
+        suffixStyle: AppTypography.bodySmall
+            .copyWith(color: AppThemeColors.textSecondary),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: AppRadius.mdRadius,
+          borderSide: const BorderSide(color: AppThemeColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AppRadius.mdRadius,
+          borderSide: const BorderSide(color: AppThemeColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AppRadius.mdRadius,
+          borderSide: const BorderSide(color: AppThemeColors.primary, width: 1.5),
+        ),
+      ),
     );
   }
 
@@ -215,6 +272,46 @@ class _AttendanceCheckInScreenState extends State<AttendanceCheckInScreen> {
                       ),
                     );
                   },
+                ),
+              ),
+
+              // Laporan kinerja (kg) — opsional
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: AppRadius.mdRadius,
+                  border: Border.all(color: AppThemeColors.border),
+                  boxShadow: AppShadows.small,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.scale_outlined,
+                            color: AppThemeColors.primary, size: 18),
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(
+                          'Laporan Kinerja Hari Ini (opsional)',
+                          style: AppTypography.labelLarge,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _buildKgField(
+                      controller: _lipatController,
+                      label: 'Lipat, packing, wangi',
+                      icon: Icons.dry_cleaning_outlined,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _buildKgField(
+                      controller: _setrikaController,
+                      label: 'Setrika',
+                      icon: Icons.iron_outlined,
+                    ),
+                  ],
                 ),
               ),
 

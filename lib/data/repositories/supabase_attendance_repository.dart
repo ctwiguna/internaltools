@@ -79,12 +79,14 @@ class SupabaseAttendanceRepository {
     return Attendance.fromSupabase(data.first);
   }
 
-  /// Catat absen masuk + checklist ke Supabase.
+  /// Catat absen masuk + checklist + laporan kg ke Supabase.
   /// user_id diambil dari sesi auth yang sedang login.
   Future<String> checkIn({
     required String userName,
     required List<Map<String, String>> checklist,
     required int checklistDurationSec,
+    double lipatKg = 0,
+    double setrikaKg = 0,
   }) async {
     final outletUuid = _outletUuid;
     if (outletUuid == null) {
@@ -102,6 +104,8 @@ class SupabaseAttendanceRepository {
       'check_in_at': DateTime.now().toIso8601String(),
       'checklist': checklist,
       'checklist_duration_sec': checklistDurationSec,
+      'lipat_kg': lipatKg,
+      'setrika_kg': setrikaKg,
     });
 
     return uuid;

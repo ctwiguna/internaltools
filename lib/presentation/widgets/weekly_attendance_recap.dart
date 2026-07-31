@@ -8,8 +8,9 @@ import '../../../logic/cubits/auth/auth_cubit.dart';
 import '../../../logic/cubits/auth/auth_state.dart';
 
 /// Rekap absensi mingguan untuk OWNER (ctwiguna):
-/// nama karyawan — outlet — jumlah absen minggu ini (Senin–Minggu),
-/// mencakup SEMUA outlet. Akun lain tidak melihat section ini.
+/// nama karyawan — outlet — jumlah absen + total kg lipat & setrika
+/// minggu ini (Senin–Minggu), mencakup SEMUA outlet.
+/// Akun lain tidak melihat section ini.
 class WeeklyAttendanceRecap extends StatelessWidget {
   const WeeklyAttendanceRecap({super.key});
 
@@ -33,7 +34,7 @@ class WeeklyAttendanceRecap extends StatelessWidget {
     // Absensi sejak Senin (semua outlet)
     final attendanceRows = await client
         .from('attendance')
-        .select('user_name, outlet_id')
+        .select('user_name, outlet_id, lipat_kg, setrika_kg')
         .gte('check_in_at', monday.toIso8601String());
 
     // Nama outlet
@@ -43,7 +44,7 @@ class WeeklyAttendanceRecap extends StatelessWidget {
         o['id'] as String: (o['name'] as String?) ?? '-',
     };
 
-    // Kelompokkan: karyawan + outlet -> jumlah absen
+    // Kelompokkan: karyawan + outlet -> jumlah absen + total kg
     final Map<String, _RecapRow> grouped = {};
     for (final row in attendanceRows as List) {
       final userName = (row['user_name'] as String?) ?? '-';
@@ -55,9 +56,13 @@ class WeeklyAttendanceRecap extends StatelessWidget {
           userName: userName,
           outletName: outletNames[outletId] ?? '-',
           count: 0,
+          lipatKg: 0,
+          setrikaKg: 0,
         ),
       );
       rec.count += 1;
+      rec.lipatKg += (row['lipat_kg'] as num?)?.toDouble() ?? 0;
+      rec.setrikaKg += (row['setrika_kg'] as num?)?.toDouble() ?? 0;
     }
 
     final rows = grouped.values.toList()
@@ -68,6 +73,9 @@ class WeeklyAttendanceRecap extends StatelessWidget {
 
     return _RecapData(monday: monday, sunday: sunday, rows: rows);
   }
+
+  String _fmtKg(double kg) =>
+      kg.toStringAsFixed(kg.truncateToDouble() == kg ? 0 : 1);
 
   @override
   Widget build(BuildContext context) {
@@ -135,6 +143,7 @@ class WeeklyAttendanceRecap extends StatelessWidget {
                       padding:
                           const EdgeInsets.only(bottom: AppSpacing.sm),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             flex: 3,
@@ -154,12 +163,32 @@ class WeeklyAttendanceRecap extends StatelessWidget {
                               ),
                             ),
                           ),
-                          Text(
-                            '${r.count}x absen',
-                            style: AppTypography.bodyMedium.copyWith(
-                              color: AppThemeColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '${r.count}x absen',
+                                style: AppTypography.bodyMedium.copyWith(
+                                  color: AppThemeColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (r.lipatKg > 0 || r.setrikaKg > 0) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Lipat ${_fmtKg(r.lipatKg)} kg',
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: AppThemeColors.textSecondary,
+                                  ),
+                                ),
+                                Text(
+                                  'Setrika ${_fmtKg(r.setrikaKg)} kg',
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: AppThemeColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ],
                       ),
@@ -190,10 +219,14 @@ class _RecapRow {
   final String userName;
   final String outletName;
   int count;
+  double lipatKg;
+  double setrikaKg;
 
   _RecapRow({
     required this.userName,
     required this.outletName,
     required this.count,
+    required this.lipatKg,
+    required this.setrikaKg,
   });
 }

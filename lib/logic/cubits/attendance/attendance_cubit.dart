@@ -81,6 +81,8 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     required String userName,
     required List<Map<String, String>> checklist,
     int? durationSec,
+    double lipatKg = 0,
+    double setrikaKg = 0,
   }) async {
     emit(const AttendanceLoading());
     try {
@@ -89,6 +91,8 @@ class AttendanceCubit extends Cubit<AttendanceState> {
           userName: userName,
           checklist: checklist,
           checklistDurationSec: durationSec ?? 0,
+          lipatKg: lipatKg,
+          setrikaKg: setrikaKg,
         );
       } else {
         await _opsRepository.checkIn(

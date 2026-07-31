@@ -12,6 +12,8 @@ class Attendance extends Equatable {
   final DateTime checkInAt;
   final List<Map<String, dynamic>> checklist;
   final int? checklistDurationSec;
+  final double lipatKg; // laporan kinerja: lipat/packing/wangi (kg)
+  final double setrikaKg; // laporan kinerja: setrika (kg)
   final DateTime? createdAt;
 
   const Attendance({
@@ -24,6 +26,8 @@ class Attendance extends Equatable {
     required this.checkInAt,
     required this.checklist,
     this.checklistDurationSec,
+    this.lipatKg = 0,
+    this.setrikaKg = 0,
     this.createdAt,
   });
 
@@ -52,6 +56,8 @@ class Attendance extends Equatable {
       'check_in_at': checkInAt.toIso8601String(),
       'checklist': checklist,
       'checklist_duration_sec': checklistDurationSec,
+      'lipat_kg': lipatKg,
+      'setrika_kg': setrikaKg,
     };
   }
 
@@ -115,6 +121,8 @@ class Attendance extends Equatable {
       checkInAt: DateTime.parse(map['check_in_at'] as String),
       checklist: parsedChecklist,
       checklistDurationSec: TypeHelper.asNullableInt(map['checklist_duration_sec']),
+      lipatKg: (map['lipat_kg'] as num?)?.toDouble() ?? 0,
+      setrikaKg: (map['setrika_kg'] as num?)?.toDouble() ?? 0,
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : null,
@@ -131,6 +139,8 @@ class Attendance extends Equatable {
     DateTime? checkInAt,
     List<Map<String, dynamic>>? checklist,
     int? checklistDurationSec,
+    double? lipatKg,
+    double? setrikaKg,
     DateTime? createdAt,
   }) {
     return Attendance(
@@ -143,6 +153,8 @@ class Attendance extends Equatable {
       checkInAt: checkInAt ?? this.checkInAt,
       checklist: checklist ?? this.checklist,
       checklistDurationSec: checklistDurationSec ?? this.checklistDurationSec,
+      lipatKg: lipatKg ?? this.lipatKg,
+      setrikaKg: setrikaKg ?? this.setrikaKg,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -158,6 +170,8 @@ class Attendance extends Equatable {
         checkInAt,
         checklist,
         checklistDurationSec,
+        lipatKg,
+        setrikaKg,
         createdAt,
       ];
 }
