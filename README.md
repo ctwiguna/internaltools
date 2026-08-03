@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>Aplikasi Kasir Laundry UMKM Indonesia - Full Offline, Jalan Tanpa Internet!</strong>
+  <strong>Aplikasi Kasir Laundry UMKM Indonesia — Full Offline, Jalan Tanpa Internet!</strong>
 </p>
 
 <p align="center">
@@ -16,22 +16,29 @@
 
 ## Tentang Aplikasi
 
-ini adalah aplikasi kasir laundry modern yang dirancang khusus untuk UMKM Indonesia. Aplikasi ini berjalan **100% offline** - tidak memerlukan koneksi internet untuk beroperasi. Semua data tersimpan aman di perangkat lokal.
+Ini adalah aplikasi kasir laundry modern yang dirancang khusus untuk UMKM Indonesia. Aplikasi ini berjalan **100% offline** — tidak memerlukan koneksi internet untuk beroperasi. Semua data tersimpan aman di perangkat lokal (SQLite). Saat perangkat terhubung internet, data akan otomatis tersinkronisasi ke cloud (Supabase) secara real-time.
 
 ### Fitur Utama
 
-- **Full Offline Mode** - Aplikasi berjalan tanpa internet
-- **Manajemen Order** - Buat, edit, dan kelola pesanan laundry
-- **Manajemen Pelanggan** - Database pelanggan lengkap
-- **Paket Layanan** - Kelola berbagai jenis layanan laundry
-- **Laporan Penjualan** - Analisa pendapatan harian, mingguan, bulanan
-- **Multi User** - Support Owner dan Kasir dengan hak akses berbeda
-- **Cetak Struk** - Dukungan printer thermal Bluetooth (58mm/80mm)
-- **Export Data** - Export laporan ke Excel
-- **Share WhatsApp** - Kirim struk ke pelanggan via WhatsApp
-- **Multi-Outlet** - Kelola beberapa cabang laundry dalam satu aplikasi
-- **Cloud Backup & Restore** - Backup data ke Supabase, restore ke device lain
-- **Auto-Sync** - Sinkronisasi otomatis saat online
+- **Full Offline Mode** — Aplikasi berjalan tanpa internet
+- **Manajemen Order** — Buat, edit, dan kelola pesanan laundry dengan status tracking
+- **Manajemen Pelanggan** — Database pelanggan lengkap per outlet
+- **Paket Layanan** — Kelola berbagai jenis layanan & harga per outlet
+- **Multi Pembayaran** — Tunai, transfer, QRIS dengan fitur uang kembalian
+- **Laporan Penjualan** — Analisa pendapatan harian, mingguan, bulanan dengan grafik interaktif
+- **Multi User & Hak Akses** — Owner (akses penuh) dan Kasir (terbatas per outlet)
+- **Kelola User Online** — Manajemen user via Supabase profiles dengan username
+- **Cetak Struk** — Dukungan printer thermal Bluetooth (58mm/80mm)
+- **Export Data** — Export laporan ke Excel
+- **Share WhatsApp** — Kirim struk ke pelanggan via WhatsApp
+- **Multi-Outlet** — Kelola beberapa cabang laundry dalam satu aplikasi dengan data terpisah
+- **Struk Per Outlet** — Nama, alamat, telepon, dan social media berbeda tiap cabang
+- **Absensi Karyawan** — Checklist kebersihan harian + input setrika & lipat
+- **Rekap Absensi Mingguan** — Ringkasan absensi & produktivitas per karyawan (owner)
+- **Uang Laci Kasir** — Catat laci awal & cash harian per outlet
+- **Cloud Backup & Restore** — Backup data ke Supabase, restore ke device lain
+- **Auto-Sync** — Sinkronisasi otomatis saat online dengan offline queue
+- **Monitoring Outlet** — Owner dapat memantau absensi karyawan per cabang
 
 ---
 
@@ -81,8 +88,8 @@ lib/
 │   └── utils/           # Utility functions (formatters, validators)
 ├── data/
 │   ├── database/        # SQLite database helper & migrations
-│   ├── models/          # Data models (Order, Customer, Service, Outlet, dll)
-│   └── repositories/    # Data repositories (CRUD + outlet filtering)
+│   ├── models/          # Data models (Order, Customer, Service, Outlet, Attendance, dll)
+│   └── repositories/    # Data repositories (CRUD + outlet filtering + Supabase sync)
 ├── logic/
 │   └── cubits/          # BLoC/Cubit state management
 │       ├── auth/        # Authentication state (local + Supabase)
@@ -90,7 +97,9 @@ lib/
 │       ├── customer/    # Customer management state
 │       ├── service/     # Service management state
 │       ├── outlet/      # Outlet switching state
-│       └── report/      # Reporting state
+│       ├── report/      # Reporting state
+│       ├── attendance/  # Attendance & check-in state
+│       └── sync/        # Cloud sync state
 ├── presentation/
 │   ├── screens/         # UI screens
 │   │   ├── auth/        # Login screen
@@ -99,7 +108,8 @@ lib/
 │   │   ├── customers/   # Customer list & form
 │   │   ├── services/    # Service list & form
 │   │   ├── reports/     # Reports & analytics
-│   │   ├── settings/    # App settings + Online settings (backup/restore)
+│   │   ├── settings/    # App settings + Online settings + User management
+│   │   ├── attendance/  # Attendance check-in & history
 │   │   └── onboarding/  # Onboarding slides
 │   └── widgets/         # Reusable widgets
 └── main.dart            # App entry point
@@ -110,18 +120,20 @@ lib/
 ## Multi-Outlet & Cloud Sync
 
 ### Fitur Multi-Outlet
-- **Switch Outlet** - Owner bisa pindah antar cabang dari menu Settings
-- **Per-Outlet Data** - Setiap outlet punya customers, services, orders sendiri
-- **Per-Outlet Settings** - Nama, alamat, telepon, invoice prefix berbeda tiap outlet
-- **Role-based Access** - Owner akses semua outlet, Kasir hanya outlet mereka
+- **Switch Outlet** — Owner bisa pindah antar cabang dari menu Settings
+- **Per-Outlet Data** — Setiap outlet punya customers, services, orders, dan absensi sendiri
+- **Per-Outlet Settings** — Nama laundry, alamat, telepon, invoice prefix, social media berbeda tiap outlet
+- **Struk Per Outlet** — Nota & struk thermal mencantumkan identitas outlet masing-masing
+- **Role-based Access** — Owner akses semua outlet, Kasir hanya outlet mereka
 
 ### Cloud Backup & Restore
-- **Backup ke Supabase** - Upload semua data dari semua outlet
-- **Restore dari Cloud** - Download data ke device baru/berbeda
-- **Auto-Sync** - Order baru otomatis sync saat online
-- **Offline Queue** - Data tersimpan di queue jika offline, sync saat online
+- **Backup ke Supabase** — Upload semua data dari semua outlet secara real-time
+- **Restore dari Cloud** — Download data ke device baru / berbeda
+- **Auto-Sync** — Order, pembayaran, absensi, dan perubahan data lain otomatis sync saat online
+- **Offline Queue** — Data tersimpan di queue jika offline, sync otomatis saat koneksi kembali
+- **User Online** — Kelola user (owner/kasir) langsung dari Supabase profiles dengan mapping username
 
-### Setup Supabase (Opsional)
+### Setup Supabase (Opsional tapi Direkomendasikan)
 
 1. Buat project di [supabase.com](https://supabase.com)
 2. Jalankan SQL schema di `supabase/schema.sql`
@@ -132,7 +144,22 @@ lib/
    SUPABASE_ANON_KEY=eyJhbGciOiJI...
    ```
 
-> **Note:** Aplikasi tetap bisa digunakan 100% offline tanpa Supabase. Cloud sync adalah fitur opsional.
+> **Note:** Aplikasi tetap bisa digunakan 100% offline tanpa Supabase. Cloud sync adalah fitur opsional premium.
+
+---
+
+## Fitur Internal Tools
+
+### Absensi Karyawan
+- **Checklist Kebersihan** — 8 item wajib dicentang saat absen masuk
+- **Input Produktivitas** — Catat jumlah setrika & lipat per karyawan
+- **Monitoring per Outlet** — Owner dapat melihat absensi karyawan per cabang
+- **Rekap Mingguan** — Ringkasan absensi & produktivitas setiap karyawan
+
+### Uang Laci Kasir
+- **Laci Awal** — Owner mengatur modal awal kasir per shift
+- **Cash Harian** — Tracking uang tunai masuk & keluar per outlet
+- **Dashboard Cash** — Tampilan real-time cash position di Dashboard
 
 ---
 
@@ -146,7 +173,6 @@ lib/
 - Android SDK (untuk Android build)
 - Xcode (untuk iOS build, macOS only)
 - Java 17 (untuk Android build)
-
 
 ---
 
@@ -371,16 +397,16 @@ android:label="Zenn Laundry"
 
 ## Design System
 
-### Colors (Purple/Violet Theme)
+### Colors (Teal/Cyan Theme)
 ```dart
-Primary: #7B2D8E (Violet)
-Primary Light: #9B4DB0
-Primary Dark: #5A1D6B
-Background: #FAF7FB
+Primary: #2FBFC2 (Teal)
+Primary Light: #5DCDCF
+Primary Dark: #238F92
+Background: #F6FCFC
 Surface: #FFFFFF
-Error: #E53935
-Success: #43A047
-Warning: #FB8C00
+Error: #F44336
+Success: #4CAF50
+Warning: #FF9800
 ```
 
 ### Typography (Poppins)
@@ -462,7 +488,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
     </td>
   </tr>
 </table>
-
 
 ---
 
