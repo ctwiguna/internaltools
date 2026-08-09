@@ -138,60 +138,69 @@ class WeeklyAttendanceRecap extends StatelessWidget {
                         .copyWith(color: AppThemeColors.textSecondary),
                   )
                 else
-                  ...data.rows.map(
-                    (r) => Padding(
-                      padding:
-                          const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 3,
-                            child: Text(
-                              r.userName,
-                              style: AppTypography.bodyMedium.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 3,
-                            child: Text(
-                              r.outletName,
-                              style: AppTypography.bodySmall.copyWith(
-                                color: AppThemeColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 280),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      physics: const ClampingScrollPhysics(),
+                      itemCount: data.rows.length,
+                      itemBuilder: (context, index) {
+                        final r = data.rows[index];
+                        return Padding(
+                          padding:
+                              const EdgeInsets.only(bottom: AppSpacing.sm),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                '${r.count}x absen',
-                                style: AppTypography.bodyMedium.copyWith(
-                                  color: AppThemeColors.primary,
-                                  fontWeight: FontWeight.w600,
+                              Expanded(
+                                flex: 3,
+                                child: Text(
+                                  r.userName,
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
-                              if (r.lipatKg > 0 || r.setrikaKg > 0) ...[
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Lipat ${_fmtKg(r.lipatKg)} kg',
+                              Expanded(
+                                flex: 3,
+                                child: Text(
+                                  r.outletName,
                                   style: AppTypography.bodySmall.copyWith(
                                     color: AppThemeColors.textSecondary,
                                   ),
                                 ),
-                                Text(
-                                  'Setrika ${_fmtKg(r.setrikaKg)} kg',
-                                  style: AppTypography.bodySmall.copyWith(
-                                    color: AppThemeColors.textSecondary,
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '${r.count}x absen',
+                                    style: AppTypography.bodyMedium.copyWith(
+                                      color: AppThemeColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                  if (r.lipatKg > 0 || r.setrikaKg > 0) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Lipat ${_fmtKg(r.lipatKg)} kg',
+                                      style: AppTypography.bodySmall.copyWith(
+                                        color: AppThemeColors.textSecondary,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Setrika ${_fmtKg(r.setrikaKg)} kg',
+                                      style: AppTypography.bodySmall.copyWith(
+                                        color: AppThemeColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ],
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ),
               ],
