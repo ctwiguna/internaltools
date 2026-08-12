@@ -5,10 +5,14 @@ import 'package:flutter_laundry_offline_app/core/theme/app_theme.dart';
 import 'package:flutter_laundry_offline_app/core/utils/currency_formatter.dart';
 import 'package:flutter_laundry_offline_app/core/utils/date_formatter.dart';
 import 'package:flutter_laundry_offline_app/core/utils/thousand_separator_formatter.dart';
+import 'package:flutter_laundry_offline_app/data/models/cancellation_request.dart';
 import 'package:flutter_laundry_offline_app/data/models/order.dart';
 import 'package:flutter_laundry_offline_app/data/models/payment.dart';
+import 'package:flutter_laundry_offline_app/data/models/user.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/auth/auth_cubit.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/auth/auth_state.dart';
+import 'package:flutter_laundry_offline_app/logic/cubits/cancellation/cancellation_cubit.dart';
+import 'package:flutter_laundry_offline_app/logic/cubits/cancellation/cancellation_state.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/order/order_cubit.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/order/order_state.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/printer/printer_cubit.dart';
@@ -25,10 +29,31 @@ class OrderDetailScreen extends StatefulWidget {
 }
 
 class _OrderDetailScreenState extends State<OrderDetailScreen> {
+  final CancellationCubit _cancellationCubit = CancellationCubit();
+  CancellationRequest? _pendingCancellation;
+  bool _checkingPending = true;
+
   @override
   void initState() {
     super.initState();
     context.read<OrderCubit>().loadOrderDetail(widget.orderId);
+    _loadPendingCancellation();
+  }
+
+  @override
+  void dispose() {
+    _cancellationCubit.close();
+    super.dispose();
+  }
+
+  Future<void> _loadPendingCancellation() async {
+    final pending = await _cancellationCubit.checkPendingForOrder(widget.orderId);
+    if (mounted) {
+      setState(() {
+        _pendingCancellation = pending;
+        _checkingPending = false;
+      });
+    }
   }
 
   Color _getStatusColor(OrderStatus status) {
@@ -620,8 +645,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 child: ListView(
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   children: [
+                    // Pending cancellation banner
+                    if (_pendingCancellation != null) ...[
+                      _buildCancellationBanner(_pendingCancellation!),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
+
                     // Status Card
-                    _buildStatusCard(order),
+                    _buildStatusCard(order, locked: _pendingCancellation != null),
 
                     const SizedBox(height: AppSpacing.md),
 
@@ -636,11 +667,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     const SizedBox(height: AppSpacing.md),
 
                     // Payment
-                    _buildPaymentCard(order),
+                    _buildPaymentCard(order, locked: _pendingCancellation != null),
 
                     if (order.notes != null && order.notes!.isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.md),
                       _buildNotesCard(order),
+                    ],
+
+                    if (!_checkingPending &&
+                        _pendingCancellation == null &&
+                        order.status != OrderStatus.done) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      _buildCancellationButton(order),
                     ],
 
                     const SizedBox(height: AppSpacing.xxl),
@@ -744,7 +782,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
-  Widget _buildStatusCard(Order order) {
+  Widget _buildStatusCard(Order order, {bool locked = false}) {
     final statuses = OrderStatus.values;
     final currentIndex = statuses.indexOf(order.status);
 
@@ -794,7 +832,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 final color = _getStatusColor(status);
 
                 return GestureDetector(
-                  onTap: isNext && order.status != OrderStatus.done
+                  onTap: isNext && order.status != OrderStatus.done && !locked
                       ? () => _confirmStatusUpdate(order, status)
                       : null,
                   child: Column(
@@ -857,7 +895,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             ),
 
             // Next action hint
-            if (order.status != OrderStatus.done) ...[
+            if (order.status != OrderStatus.done && !locked) ...[
               const SizedBox(height: AppSpacing.lg),
               GestureDetector(
                 onTap: () {
@@ -1233,7 +1271,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
-  Widget _buildPaymentCard(Order order) {
+  Widget _buildPaymentCard(Order order, {bool locked = false}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1255,7 +1293,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (!order.isPaid)
+                if (!order.isPaid && !locked)
                   GestureDetector(
                     onTap: () => _showAddPaymentDialog(order),
                     child: Container(
@@ -1512,6 +1550,172 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCancellationBanner(CancellationRequest request) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppThemeColors.warning.withValues(alpha: 0.1),
+        borderRadius: AppRadius.mdRadius,
+        border: Border.all(color: AppThemeColors.warning.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.hourglass_top, color: AppThemeColors.warning, size: 20),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Menunggu Persetujuan Pembatalan',
+                  style: AppTypography.labelMedium.copyWith(
+                    color: AppThemeColors.warning,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Order dibekukan sampai owner menyetujui atau menolak pengajuan ini.\nAlasan: ${request.reason}',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppThemeColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCancellationButton(Order order) {
+    return GestureDetector(
+      onTap: () => _showCancellationDialog(order),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: AppRadius.mdRadius,
+          border: Border.all(color: AppThemeColors.error.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.cancel_outlined, color: AppThemeColors.error, size: 18),
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              'Ajukan Pembatalan',
+              style: AppTypography.labelMedium.copyWith(
+                color: AppThemeColors.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCancellationDialog(Order order) {
+    final authState = context.read<AuthCubit>().state;
+    final User? requester = authState is AuthAuthenticated ? authState.user : null;
+    if (requester == null) return;
+
+    final reasonController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.lgRadius),
+        title: Text('Ajukan Pembatalan', style: AppTypography.titleLarge),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Order ${order.invoiceNo} akan dibekukan dan dikirim ke owner untuk direview. Order baru bisa dibuat lagi setelah disetujui.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppThemeColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextFormField(
+                controller: reasonController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Alasan Pembatalan',
+                  hintText: 'Contoh: salah input jumlah/harga item',
+                  border: OutlineInputBorder(borderRadius: AppRadius.mdRadius),
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().length < 5) {
+                    return 'Alasan minimal 5 karakter';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Batal',
+              style: AppTypography.labelMedium.copyWith(
+                color: AppThemeColors.textSecondary,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              Navigator.pop(dialogContext);
+
+              await _cancellationCubit.requestCancellation(
+                order: order,
+                reason: reasonController.text,
+                requester: requester,
+              );
+
+              if (!mounted) return;
+              final state = _cancellationCubit.state;
+              if (state is CancellationRequestSuccess) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.message),
+                    backgroundColor: AppThemeColors.success,
+                  ),
+                );
+                await _loadPendingCancellation();
+              } else if (state is CancellationError) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.message),
+                    backgroundColor: AppThemeColors.error,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppThemeColors.error,
+              shape: RoundedRectangleBorder(borderRadius: AppRadius.smRadius),
+            ),
+            child: Text(
+              'Ajukan',
+              style: AppTypography.labelMedium.copyWith(color: Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }

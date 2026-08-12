@@ -8,7 +8,7 @@ class AppConstants {
 
   // Database
   static const String databaseName = 'laundry_v5.db';
-  static const int databaseVersion = 6; // v6: attendance, shifts, cash_expenses
+  static const int databaseVersion = 7; // v7: order_cancellation_requests
 
   // Settings Keys - Outlet
   static const String keyCurrentOutletId = 'current_outlet_id';
