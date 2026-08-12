@@ -35,7 +35,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   final _notesController = TextEditingController();
   final _paymentController = TextEditingController();
 
-  DateTime _dueDate = DateTime.now().add(const Duration(days: 3));
+  DateTime _dueDate = DateTime.now().add(const Duration(days: 1));
   PaymentMethod _paymentMethod = PaymentMethod.cash;
   bool _isLoading = false;
 
