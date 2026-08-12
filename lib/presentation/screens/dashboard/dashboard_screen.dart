@@ -6,10 +6,13 @@ import 'package:flutter_laundry_offline_app/core/services/supabase_service.dart'
 import 'package:flutter_laundry_offline_app/core/services/sync_service.dart';
 import 'package:flutter_laundry_offline_app/core/theme/app_theme.dart';
 import 'package:flutter_laundry_offline_app/core/utils/currency_formatter.dart';
+import 'package:flutter_laundry_offline_app/data/models/cancellation_request.dart';
 import 'package:flutter_laundry_offline_app/data/models/order.dart';
 import 'package:flutter_laundry_offline_app/data/models/user.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/auth/auth_cubit.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/auth/auth_state.dart';
+import 'package:flutter_laundry_offline_app/logic/cubits/cancellation/cancellation_cubit.dart';
+import 'package:flutter_laundry_offline_app/logic/cubits/cancellation/cancellation_state.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/customer/customer_cubit.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/dashboard/dashboard_cubit.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/dashboard/dashboard_state.dart';
@@ -18,6 +21,7 @@ import 'package:flutter_laundry_offline_app/logic/cubits/outlet/outlet_cubit.dar
 import 'package:flutter_laundry_offline_app/logic/cubits/outlet/outlet_state.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/service/service_cubit.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/printer/printer_cubit.dart';
+import 'package:flutter_laundry_offline_app/presentation/screens/cancellation/cancellation_approval_screen.dart';
 import 'package:flutter_laundry_offline_app/presentation/screens/orders/order_form_screen.dart';
 import 'package:flutter_laundry_offline_app/presentation/screens/orders/order_detail_screen.dart';
 import 'package:flutter_laundry_offline_app/presentation/screens/orders/order_list_screen.dart';
@@ -100,10 +104,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   _buildCloudSyncCard(),
                                   const CashDrawerCard(),
 
+                                  // Pending cancellation approval alert (owner only)
+                                  if (user?.role == UserRole.owner)
+                                    _buildCancellationAlert(),
+
                                   const SizedBox(height: AppSpacing.lg),
 
                                   // Quick Actions
-                                  _buildQuickActions(),
+                                  _buildQuickActions(user),
 
                                   const SizedBox(height: AppSpacing.xl),
 
@@ -388,7 +396,70 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildQuickActions() {
+  Widget _buildCancellationAlert() {
+    return FutureBuilder<int>(
+      future: () async {
+        final cubit = CancellationCubit();
+        try {
+          await cubit.loadRequests(status: CancellationStatus.pending);
+          final state = cubit.state;
+          return state is CancellationLoaded ? state.requests.length : 0;
+        } catch (_) {
+          return 0;
+        } finally {
+          cubit.close();
+        }
+      }(),
+      builder: (context, snapshot) {
+        final count = snapshot.data ?? 0;
+        if (count == 0) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.lg),
+          child: GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BlocProvider(
+                    create: (_) => CancellationCubit(),
+                    child: const CancellationApprovalScreen(ownerMode: true),
+                  ),
+                ),
+              ).then((_) => setState(() {}));
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppThemeColors.warning.withValues(alpha: 0.12),
+                borderRadius: AppRadius.mdRadius,
+                border: Border.all(color: AppThemeColors.warning.withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.hourglass_top, color: AppThemeColors.warning, size: 22),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      '$count pengajuan pembatalan order menunggu persetujuan Anda',
+                      style: AppTypography.labelMedium.copyWith(
+                        color: AppThemeColors.warning,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: AppThemeColors.warning),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildQuickActions(User? user) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -456,6 +527,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 },
               ),
             ),
+            if (user?.role == UserRole.owner) ...[
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: _buildQuickActionItem(
+                  icon: Icons.rule_folder,
+                  label: 'Pembatalan',
+                  color: AppThemeColors.error,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BlocProvider(
+                          create: (_) => CancellationCubit(),
+                          child: const CancellationApprovalScreen(ownerMode: true),
+                        ),
+                      ),
+                    ).then((_) => setState(() {}));
+                  },
+                ),
+              ),
+            ],
           ],
         ),
       ],

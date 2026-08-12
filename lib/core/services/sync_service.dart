@@ -557,7 +557,8 @@ class SyncService {
               debugPrint('Sync: Service synced');
             } else if (table == 'attendance' ||
                 table == 'shifts' ||
-                table == 'cash_expenses') {
+                table == 'cash_expenses' ||
+                table == 'order_cancellation_requests') {
               // === MODUL INTERNAL (absen, shift, pengeluaran kas) ===
               // Baris-baris ini punya UUID yang dibuat di client (kolom 'id'),
               // jadi kita pakai UPSERT: aman di-retry, dan tutup shift cukup

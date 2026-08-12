@@ -14,6 +14,10 @@ import 'package:flutter_laundry_offline_app/logic/cubits/service/service_cubit.d
 import 'package:flutter_laundry_offline_app/logic/cubits/customer/customer_cubit.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/outlet/outlet_cubit.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/outlet/outlet_state.dart';
+import 'package:flutter_laundry_offline_app/data/models/cancellation_request.dart';
+import 'package:flutter_laundry_offline_app/logic/cubits/cancellation/cancellation_cubit.dart';
+import 'package:flutter_laundry_offline_app/logic/cubits/cancellation/cancellation_state.dart';
+import 'package:flutter_laundry_offline_app/presentation/screens/cancellation/cancellation_approval_screen.dart';
 import 'package:flutter_laundry_offline_app/presentation/screens/settings/user_management_screen.dart';
 import 'package:flutter_laundry_offline_app/presentation/screens/settings/outlet_management_screen.dart';
 import 'package:flutter_laundry_offline_app/presentation/screens/settings/online_settings_screen.dart';
@@ -386,6 +390,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                           // Outlet Management Section (NEW)
                           _buildOutletSection(context),
+
+                          // Cancellation Section
+                          _buildCancellationSection(context, user),
 
                           // Laundry Info Section (per outlet aktif)
                           BlocBuilder<OutletCubit, OutletState>(
@@ -1241,6 +1248,74 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<int> _pendingCancellationCount() async {
+    final cubit = CancellationCubit();
+    try {
+      await cubit.loadRequests(status: CancellationStatus.pending);
+      final state = cubit.state;
+      return state is CancellationLoaded ? state.requests.length : 0;
+    } catch (_) {
+      return 0;
+    } finally {
+      cubit.close();
+    }
+  }
+
+  Widget _buildCancellationSection(BuildContext context, User? user) {
+    final isOwner = user?.role == UserRole.owner;
+
+    return _buildSection(
+      title: 'Pembatalan Order',
+      children: [
+        if (isOwner) ...[
+          FutureBuilder<int>(
+            future: _pendingCancellationCount(),
+            builder: (context, snapshot) {
+              final count = snapshot.data ?? 0;
+              return _buildSettingTile(
+                context: context,
+                icon: Icons.rule_folder_outlined,
+                title: 'Persetujuan Pembatalan',
+                subtitle: count > 0
+                    ? '$count pengajuan menunggu review'
+                    : 'Tidak ada pengajuan menunggu',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BlocProvider(
+                        create: (_) => CancellationCubit(),
+                        child: const CancellationApprovalScreen(ownerMode: true),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+          _buildDivider(),
+        ],
+        _buildSettingTile(
+          context: context,
+          icon: Icons.history,
+          title: 'Riwayat Pembatalan Saya',
+          subtitle: 'Status pengajuan pembatalan yang pernah dibuat',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BlocProvider(
+                  create: (_) => CancellationCubit(),
+                  child: const CancellationApprovalScreen(ownerMode: false),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 

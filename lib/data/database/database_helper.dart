@@ -218,6 +218,9 @@ class DatabaseHelper {
 
     // v6: modul internal (absen, shift, pengeluaran kas)
     await _createV6Tables(db);
+
+    // v7: pengajuan pembatalan order
+    await _createV7Tables(db);
   }
 
   Future<void> _seedData(Database db) async {
@@ -453,6 +456,11 @@ class DatabaseHelper {
       // pengeluaran kas per shift)
       await _createV6Tables(db);
     }
+
+    if (oldVersion < 7) {
+      // v7: pengajuan pembatalan order
+      await _createV7Tables(db);
+    }
   }
 
   /// v6: tabel modul internal. Kolom `uuid` dibuat di client dan menjadi
@@ -516,6 +524,45 @@ class DatabaseHelper {
         'CREATE INDEX IF NOT EXISTS idx_expenses_shift ON cash_expenses(shift_uuid)');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_attendance_outlet ON attendance(outlet_id, check_in_at)');
+  }
+
+  /// v7: pengajuan pembatalan order oleh kasir, direview owner.
+  /// Mengikuti pola v6 (uuid client-generated = PK cloud, upsert-based sync).
+  /// `order_snapshot` menyimpan salinan order+item+payment saat pengajuan
+  /// dibuat sehingga tetap bisa ditampilkan sebagai riwayat walau order
+  /// aslinya sudah dihapus setelah di-approve.
+  Future<void> _createV7Tables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS order_cancellation_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        uuid TEXT NOT NULL UNIQUE,
+        outlet_id TEXT NOT NULL,
+        order_local_id INTEGER,
+        order_remote_id TEXT,
+        invoice_no TEXT NOT NULL,
+        customer_name TEXT NOT NULL,
+        customer_phone TEXT,
+        total_price INTEGER NOT NULL,
+        paid INTEGER NOT NULL DEFAULT 0,
+        order_snapshot TEXT NOT NULL,
+        reason TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        requested_by INTEGER,
+        requested_by_remote_id TEXT,
+        requested_by_name TEXT NOT NULL,
+        reviewed_by INTEGER,
+        reviewed_by_remote_id TEXT,
+        reviewed_by_name TEXT,
+        review_note TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        reviewed_at TEXT
+      )
+    ''');
+
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_cancel_requests_outlet_status ON order_cancellation_requests(outlet_id, status)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_cancel_requests_order ON order_cancellation_requests(order_local_id)');
   }
 
   // Utility methods
