@@ -29,6 +29,15 @@ class DashboardCubit extends Cubit<DashboardState> {
 
   bool get _isOnline => _connectivity.isOnline && _supabase.isAuthenticated;
 
+  /// Jumlah order yang belum Selesai (pending/process/ready) dari total
+  /// hitungan per status — bukan cuma order hari ini, supaya backlog yang
+  /// menumpuk dari hari-hari sebelumnya tetap kelihatan.
+  int _countUnfinished(Map<OrderStatus, int> statusCounts) {
+    return statusCounts.entries
+        .where((entry) => entry.key != OrderStatus.done)
+        .fold<int>(0, (sum, entry) => sum + entry.value);
+  }
+
   /// Load dashboard data (mengikuti outlet aktif)
   Future<void> loadDashboard() async {
     emit(const DashboardLoading());
@@ -39,14 +48,15 @@ class DashboardCubit extends Cubit<DashboardState> {
         final results = await Future.wait([
           _onlineRepository.getTodayOrderCountByStatus(),
           _onlineRepository.getTodayRevenue(),
-          _onlineRepository.getThisMonthOrderCount(),
+          _onlineRepository.getOrderCountByStatus(),
           _onlineRepository.getRecentOrders(limit: 5),
         ]);
 
         emit(DashboardLoaded(
           todayStatusCounts: results[0] as Map<OrderStatus, int>,
           todayRevenue: results[1] as int,
-          monthOrderCount: results[2] as int,
+          unfinishedOrderCount:
+              _countUnfinished(results[2] as Map<OrderStatus, int>),
           recentOrders: results[3] as List<Order>,
         ));
         return;
@@ -56,14 +66,15 @@ class DashboardCubit extends Cubit<DashboardState> {
       final results = await Future.wait([
         _orderRepository.getTodayOrderCountByStatus(),
         _paymentRepository.getTodayRevenue(),
-        _paymentRepository.getThisMonthOrderCount(),
+        _orderRepository.getOrderCountByStatus(),
         _orderRepository.getRecentOrders(limit: 5),
       ]);
 
       emit(DashboardLoaded(
         todayStatusCounts: results[0] as Map<OrderStatus, int>,
         todayRevenue: results[1] as int,
-        monthOrderCount: results[2] as int,
+        unfinishedOrderCount:
+            _countUnfinished(results[2] as Map<OrderStatus, int>),
         recentOrders: results[3] as List<Order>,
       ));
     } catch (e) {

@@ -208,11 +208,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildHeader(User? user, DashboardState state, String? outletName) {
     int todayRevenue = 0;
-    int monthOrders = 0;
+    int unfinishedOrders = 0;
 
     if (state is DashboardLoaded) {
       todayRevenue = state.todayRevenue;
-      monthOrders = state.monthOrderCount;
+      unfinishedOrders = state.unfinishedOrderCount;
     }
 
     return Container(
@@ -327,9 +327,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: _buildHeaderStatCard(
-                      icon: Icons.receipt_long_outlined,
-                      label: 'Order Bulan Ini',
-                      value: monthOrders.toString(),
+                      icon: Icons.pending_actions_outlined,
+                      label: 'Order Belum Selesai',
+                      value: unfinishedOrders.toString(),
                     ),
                   ),
                 ],
