@@ -19,13 +19,13 @@ class DashboardLoading extends DashboardState {
 class DashboardLoaded extends DashboardState {
   final Map<OrderStatus, int> todayStatusCounts;
   final int todayRevenue;
-  final int monthOrderCount;
+  final int unfinishedOrderCount;
   final List<Order> recentOrders;
 
   const DashboardLoaded({
     required this.todayStatusCounts,
     required this.todayRevenue,
-    required this.monthOrderCount,
+    required this.unfinishedOrderCount,
     required this.recentOrders,
   });
 
@@ -33,7 +33,7 @@ class DashboardLoaded extends DashboardState {
   List<Object?> get props => [
         todayStatusCounts,
         todayRevenue,
-        monthOrderCount,
+        unfinishedOrderCount,
         recentOrders,
       ];
 }
