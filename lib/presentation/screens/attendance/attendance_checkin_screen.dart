@@ -170,6 +170,41 @@ class _AttendanceCheckInScreenState extends State<AttendanceCheckInScreen> {
         builder: (context, state) {
           return Column(
             children: [
+              // Peringatan besar - jangan asal centang checklist
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  0,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.md,
+                ),
+                decoration: BoxDecoration(
+                  color: AppThemeColors.error.withValues(alpha: 0.1),
+                  borderRadius: AppRadius.mdRadius,
+                  border: Border.all(color: AppThemeColors.error.withValues(alpha: 0.4)),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded,
+                        color: AppThemeColors.error, size: 32),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'JANGAN ASAL ISI, BENERAN DICEK SATU PER SATU YA',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.titleMedium.copyWith(
+                        color: AppThemeColors.error,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               // Header info
               Container(
                 margin: const EdgeInsets.all(AppSpacing.lg),
