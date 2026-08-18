@@ -320,7 +320,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Expanded(
                     child: _buildHeaderStatCard(
                       icon: Icons.account_balance_wallet_outlined,
-                      label: 'Omzet Hari Ini',
+                      label: 'Transaksi Cash Hari Ini',
                       value: CurrencyFormatter.formatCompact(todayRevenue),
                     ),
                   ),
