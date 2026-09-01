@@ -29,6 +29,7 @@ import 'package:flutter_laundry_offline_app/presentation/screens/settings/printe
 import 'package:flutter_laundry_offline_app/presentation/screens/settings/online_settings_screen.dart';
 import 'package:flutter_laundry_offline_app/presentation/widgets/order_card.dart';
 import 'package:flutter_laundry_offline_app/presentation/widgets/connectivity_status_widget.dart';
+import 'package:flutter_laundry_offline_app/presentation/widgets/night_shift_alert_card.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -107,6 +108,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   // Pending cancellation approval alert (owner only)
                                   if (user?.role == UserRole.owner)
                                     _buildCancellationAlert(),
+
+                                  // Peringatan geofence & status shift malam (owner only)
+                                  if (user?.role == UserRole.owner)
+                                    const NightShiftAlertCard(),
 
                                   const SizedBox(height: AppSpacing.lg),
 

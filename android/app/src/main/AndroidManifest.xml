@@ -12,6 +12,12 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
+    <!-- Ambil lokasi outlet sekali saat owner mengatur geofence shift malam
+         (Settings > Kelola Outlet), foreground saja, tidak ada tracking
+         latar belakang di app ini. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <application
         android:label="Laundry POS"
         android:name="${applicationName}"

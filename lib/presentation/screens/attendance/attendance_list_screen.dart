@@ -278,13 +278,40 @@ class _AttendanceCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      attendance.userName,
-                      style: AppTypography.titleLarge,
+                    Row(
+                      children: [
+                        Text(
+                          attendance.userName,
+                          style: AppTypography.titleLarge,
+                        ),
+                        if (attendance.isNightShift) ...[
+                          const SizedBox(width: AppSpacing.sm),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppThemeColors.primary.withValues(alpha: 0.1),
+                              borderRadius: AppRadius.smRadius,
+                            ),
+                            child: Text(
+                              'MALAM',
+                              style: AppTypography.labelSmall.copyWith(
+                                color: AppThemeColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '$dateStr • $timeStr',
+                      attendance.checkOutAt != null
+                          ? '$dateStr • Masuk $timeStr — Keluar '
+                              '${DateFormat(AppConstants.timeFormat).format(attendance.checkOutAt!)}'
+                          : '$dateStr • $timeStr',
                       style: AppTypography.bodySmall,
                     ),
                   ],
@@ -300,7 +327,9 @@ class _AttendanceCard extends StatelessWidget {
                   borderRadius: AppRadius.fullRadius,
                 ),
                 child: Text(
-                  'Hadir',
+                  attendance.isNightShift && attendance.checkOutAt == null
+                      ? 'Sedang Bertugas'
+                      : 'Hadir',
                   style: AppTypography.labelSmall.copyWith(
                     color: AppThemeColors.success,
                     fontWeight: FontWeight.w600,
