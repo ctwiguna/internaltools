@@ -1,10 +1,13 @@
 import '../../widgets/multi_outlet_summary_section.dart';
+import '../../widgets/outlet_revenue_breakdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_laundry_offline_app/core/theme/app_theme.dart';
 import 'package:flutter_laundry_offline_app/core/utils/currency_formatter.dart';
 import 'package:flutter_laundry_offline_app/core/utils/date_formatter.dart';
+import 'package:flutter_laundry_offline_app/logic/cubits/auth/auth_cubit.dart';
+import 'package:flutter_laundry_offline_app/logic/cubits/auth/auth_state.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/outlet/outlet_cubit.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/outlet/outlet_state.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/report/report_cubit.dart';
@@ -350,7 +353,17 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
+  bool _isOwner(BuildContext context) {
+    final state = context.watch<AuthCubit>().state;
+    if (state is AuthAuthenticated) {
+      return state.user.username.split('@').first.toLowerCase() == 'ctwiguna';
+    }
+    return false;
+  }
+
   Widget _buildSummaryCards(ReportData data) {
+    final isOwner = _isOwner(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -385,37 +398,67 @@ class _ReportScreenState extends State<ReportScreen> {
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                icon: Icons.payments_outlined,
-                label: 'Total Omzet',
-                value: CurrencyFormatter.formatCompact(data.totalRevenue),
-                color: AppThemeColors.primary,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: _buildStatCard(
-                icon: Icons.account_balance_wallet_outlined,
-                label: 'Dibayar',
-                value: CurrencyFormatter.formatCompact(data.totalPaid),
-                color: AppThemeColors.success,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
 
-        // Unpaid - full width
-        _buildStatCard(
-          icon: Icons.pending_actions_outlined,
-          label: 'Belum Dibayar',
-          value: CurrencyFormatter.format(data.totalUnpaid),
-          color: data.totalUnpaid > 0 ? AppThemeColors.warning : AppThemeColors.success,
-          fullWidth: true,
-        ),
+        if (isOwner) ...[
+          // Total Omzet & Total Transaksi Cash PER OUTLET (khusus owner)
+          OutletRevenueBreakdown(startDate: _startDate, endDate: _endDate),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: 'Dibayar',
+                  value: CurrencyFormatter.formatCompact(data.totalPaid),
+                  color: AppThemeColors.success,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _buildStatCard(
+                  icon: Icons.pending_actions_outlined,
+                  label: 'Belum Dibayar',
+                  value: CurrencyFormatter.formatCompact(data.totalUnpaid),
+                  color: data.totalUnpaid > 0
+                      ? AppThemeColors.warning
+                      : AppThemeColors.success,
+                ),
+              ),
+            ],
+          ),
+        ] else ...[
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  icon: Icons.payments_outlined,
+                  label: 'Total Omzet',
+                  value: CurrencyFormatter.formatCompact(data.totalRevenue),
+                  color: AppThemeColors.primary,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _buildStatCard(
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: 'Dibayar',
+                  value: CurrencyFormatter.formatCompact(data.totalPaid),
+                  color: AppThemeColors.success,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+
+          // Unpaid - full width
+          _buildStatCard(
+            icon: Icons.pending_actions_outlined,
+            label: 'Belum Dibayar',
+            value: CurrencyFormatter.format(data.totalUnpaid),
+            color: data.totalUnpaid > 0 ? AppThemeColors.warning : AppThemeColors.success,
+            fullWidth: true,
+          ),
+        ],
       ],
     );
   }

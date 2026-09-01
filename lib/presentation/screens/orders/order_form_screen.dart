@@ -816,10 +816,34 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     );
   }
 
+  // Urutan tampilan layanan di "Pilih Layanan" (bukan urutan penyimpanan).
+  static const List<String> _serviceDisplayOrder = [
+    'Cuci Mesin Kecil',
+    'Kering Mesin Kecil',
+    'Cuci Mesin Besar',
+    'Kering Mesin Besar',
+    'Jasa Lipat Packing Wangi',
+    'Jasa Setrika Packing Wangi',
+    'Jasa Drop Off Cuci Kering',
+    'EXTRA DRYER',
+  ];
+
+  List<Service> _sortedServices(List<Service> services) {
+    final indexed = services.asMap().entries.toList();
+    indexed.sort((a, b) {
+      final ai = _serviceDisplayOrder.indexOf(a.value.name);
+      final bi = _serviceDisplayOrder.indexOf(b.value.name);
+      final aRank = ai == -1 ? _serviceDisplayOrder.length + a.key : ai;
+      final bRank = bi == -1 ? _serviceDisplayOrder.length + b.key : bi;
+      return aRank.compareTo(bRank);
+    });
+    return indexed.map((e) => e.value).toList();
+  }
+
   Widget _buildServiceSelector() {
     return BlocBuilder<ServiceCubit, ServiceState>(
       builder: (context, state) {
-        final services = context.read<ServiceCubit>().services;
+        final services = _sortedServices(context.read<ServiceCubit>().services);
 
         if (services.isEmpty) {
           return Container(
