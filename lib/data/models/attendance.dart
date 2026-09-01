@@ -14,6 +14,8 @@ class Attendance extends Equatable {
   final int? checklistDurationSec;
   final double lipatKg; // laporan kinerja: lipat/packing/wangi (kg)
   final double setrikaKg; // laporan kinerja: setrika (kg)
+  final String shiftType; // 'day' | 'night' -- lihat migration 004
+  final DateTime? checkOutAt; // hanya diisi oleh app shift malam
   final DateTime? createdAt;
 
   const Attendance({
@@ -28,8 +30,12 @@ class Attendance extends Equatable {
     this.checklistDurationSec,
     this.lipatKg = 0,
     this.setrikaKg = 0,
+    this.shiftType = 'day',
+    this.checkOutAt,
     this.createdAt,
   });
+
+  bool get isNightShift => shiftType == 'night';
 
   Map<String, dynamic> toMap() {
     return {
@@ -123,6 +129,10 @@ class Attendance extends Equatable {
       checklistDurationSec: TypeHelper.asNullableInt(map['checklist_duration_sec']),
       lipatKg: (map['lipat_kg'] as num?)?.toDouble() ?? 0,
       setrikaKg: (map['setrika_kg'] as num?)?.toDouble() ?? 0,
+      shiftType: TypeHelper.asNullableString(map['shift_type']) ?? 'day',
+      checkOutAt: map['check_out_at'] != null
+          ? DateTime.parse(map['check_out_at'] as String)
+          : null,
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : null,
@@ -141,6 +151,8 @@ class Attendance extends Equatable {
     int? checklistDurationSec,
     double? lipatKg,
     double? setrikaKg,
+    String? shiftType,
+    DateTime? checkOutAt,
     DateTime? createdAt,
   }) {
     return Attendance(
@@ -155,6 +167,8 @@ class Attendance extends Equatable {
       checklistDurationSec: checklistDurationSec ?? this.checklistDurationSec,
       lipatKg: lipatKg ?? this.lipatKg,
       setrikaKg: setrikaKg ?? this.setrikaKg,
+      shiftType: shiftType ?? this.shiftType,
+      checkOutAt: checkOutAt ?? this.checkOutAt,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -172,6 +186,8 @@ class Attendance extends Equatable {
         checklistDurationSec,
         lipatKg,
         setrikaKg,
+        shiftType,
+        checkOutAt,
         createdAt,
       ];
 }

@@ -4,6 +4,7 @@ import 'package:flutter_laundry_offline_app/core/theme/app_theme.dart';
 import 'package:flutter_laundry_offline_app/data/models/outlet.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/outlet/outlet_cubit.dart';
 import 'package:flutter_laundry_offline_app/logic/cubits/outlet/outlet_state.dart';
+import 'package:flutter_laundry_offline_app/presentation/widgets/outlet_geofence_dialog.dart';
 
 class OutletManagementScreen extends StatefulWidget {
   const OutletManagementScreen({super.key});
@@ -337,6 +338,17 @@ class _OutletManagementScreenState extends State<OutletManagementScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(width: AppSpacing.sm),
+                IconButton(
+                  onPressed: outlet.remoteId != null
+                      ? () => _showGeofenceDialog(context, outlet)
+                      : null,
+                  icon: const Icon(Icons.location_on_outlined),
+                  color: AppThemeColors.primary,
+                  tooltip: outlet.remoteId != null
+                      ? 'Lokasi shift malam'
+                      : 'Sinkronkan outlet ke cloud dulu',
+                ),
                 if (!isCurrentOutlet && totalOutlets > 1) ...[
                   const SizedBox(width: AppSpacing.sm),
                   IconButton(
@@ -606,6 +618,28 @@ class _OutletManagementScreenState extends State<OutletManagementScreen> {
         ],
       ),
     );
+  }
+
+  void _showGeofenceDialog(BuildContext context, Outlet outlet) {
+    final remoteId = outlet.remoteId;
+    if (remoteId == null) return;
+
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => OutletGeofenceDialog(
+        outletRemoteId: remoteId,
+        outletName: outlet.name,
+      ),
+    ).then((saved) {
+      if (saved == true && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Lokasi geofence outlet disimpan'),
+            backgroundColor: AppThemeColors.success,
+          ),
+        );
+      }
+    });
   }
 
   void _showDeleteConfirmation(BuildContext context, Outlet outlet) {
